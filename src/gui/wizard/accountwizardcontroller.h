@@ -44,6 +44,7 @@ class AccountWizardController : public QObject
     Q_PROPERTY(bool overrideServerSelectionRequired READ overrideServerSelectionRequired NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(bool startLoginFlowAutomatically READ startLoginFlowAutomatically CONSTANT)
     Q_PROPERTY(bool hasHomepageUrl READ hasHomepageUrl CONSTANT)
+    Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY currentStepChanged)
     Q_PROPERTY(QStringList overrideServerNames READ overrideServerNames NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(int overrideServerIndex READ overrideServerIndex WRITE setOverrideServerIndex NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
@@ -195,6 +196,7 @@ public:
     Q_INVOKABLE void openProxySettings();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void goBack();
+    [[nodiscard]] bool canGoBack() const;
     Q_INVOKABLE void finish();
     Q_INVOKABLE void skipFolderConfiguration();
     Q_INVOKABLE void setSyncMode(int syncMode);
@@ -327,6 +329,7 @@ private:
         QNetworkProxy::ProxyType _proxyType = QNetworkProxy::NoProxy;
     };
     Step _currentStep = ServerStep;
+    bool _opensOnLoginPage = false;
     QString _serverUrl;
     bool _serverUrlEditable = true;
     QStringList _overrideServerNames;

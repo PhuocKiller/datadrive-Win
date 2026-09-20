@@ -52,6 +52,28 @@ public:
 
 }
 
+/**
+ * Puts the theme back into the state of a build that lets the user pick a server.
+ *
+ * A build that pins the server never shows the server page, so the wizard opens on the
+ * credentials page instead. Tests that exercise the server page need the other configuration,
+ * and restore the theme when the returned guard goes out of scope.
+ */
+[[nodiscard]] static auto useSelectableServer()
+{
+    const auto theme = Theme::instance();
+    const auto previousForceOverrideServerUrl = theme->forceOverrideServerUrl();
+    const auto previousStartLoginFlowAutomatically = theme->startLoginFlowAutomatically();
+
+    theme->setForceOverrideServerUrl(false);
+    theme->setStartLoginFlowAutomatically(false);
+
+    return qScopeGuard([theme, previousForceOverrideServerUrl, previousStartLoginFlowAutomatically] {
+        theme->setForceOverrideServerUrl(previousForceOverrideServerUrl);
+        theme->setStartLoginFlowAutomatically(previousStartLoginFlowAutomatically);
+    });
+}
+
 class TestAccountWizardController : public QObject
 {
     Q_OBJECT
@@ -133,6 +155,8 @@ private Q_SLOTS:
     {
         QFETCH(QString, serverUrl);
 
+        const auto restoreTheme = useSelectableServer();
+
         AccountWizardController controller;
         QSignalSpy errorSpy(&controller, &AccountWizardController::errorTextChanged);
 
@@ -157,6 +181,8 @@ private Q_SLOTS:
 
     void rejectsIncompleteManualProxyBeforeServerCheck()
     {
+        const auto restoreTheme = useSelectableServer();
+
         AccountWizardController controller;
         QSignalSpy errorSpy(&controller, &AccountWizardController::errorTextChanged);
 
@@ -399,6 +425,42 @@ private Q_SLOTS:
         // Running the step again must not bounce the user out of the credentials page.
         AccountWizardControllerTestAccess::determineAuthType(controller);
         QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+    }
+
+    void inAppLoginBuildOpensOnTheCredentialsPage()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->forceInAppLogin() || !theme->startLoginFlowAutomatically()) {
+            QSKIP("Build does not open straight on the credentials page.");
+        }
+
+        AccountWizardController controller;
+
+        // Starting on the server page would make it flash past once the window submits the
+        // pinned address, which is what this build is meant to avoid.
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QVERIFY(controller.startLoginFlowAutomatically());
+    }
+
+    void thereIsNoWayBackFromTheFirstPage()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->forceInAppLogin() || !theme->startLoginFlowAutomatically()) {
+            QSKIP("Build does not open straight on the credentials page.");
+        }
+
+        AccountWizardController controller;
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QVERIFY(!controller.canGoBack());
+
+        // Even if something invokes it anyway, the user must not be stranded on the server page
+        // that this build never shows.
+        controller.goBack();
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+
+        // The sync options page comes after a successful login, so that one can still go back.
+        AccountWizardControllerTestAccess::setCurrentStep(controller, AccountWizardController::SyncOptionsStep);
+        QVERIFY(controller.canGoBack());
     }
 
     void homepageButtonIsOfferedOnlyWhenTheBuildDefinesTheUrl()

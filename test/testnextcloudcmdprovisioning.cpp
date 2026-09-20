@@ -157,8 +157,9 @@ private Q_SLOTS:
         const auto output = runCmd({}, &exitCode);
 
         QCOMPARE(exitCode, expectedExitCode);
-        QVERIFY2(output.contains("nextcloudcmd") || output.contains("nextclouddevcmd"),
-                 output.constData());
+        // The usage line carries whatever this build calls the tool, so branded builds print
+        // their own name here rather than the upstream one.
+        QVERIFY2(output.contains(APPLICATION_EXECUTABLE "cmd"), output.constData());
         QVERIFY2(output.contains("--userid"), output.constData());
     }
 

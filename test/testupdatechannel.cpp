@@ -38,6 +38,12 @@ private Q_SLOTS:
 
     void testUpdateChannel()
     {
+        if (OCC::Theme::instance()->isBranded()) {
+            // ConfigFile::currentUpdateChannel() returns the default channel outright for a
+            // branded build, so the per-account resolution this test covers never runs there.
+            QSKIP("Branded builds pin the update channel.");
+        }
+
         QScopedPointer<FakeQNAM> fakeQnam(new FakeQNAM({}));
 
         // Set override for delete operation. This is needed, because by default FakeQNAM results in an

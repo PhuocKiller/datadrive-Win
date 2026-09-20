@@ -631,7 +631,13 @@ bool Theme::monoIconsAvailable() const
 
 QString Theme::updateCheckUrl() const
 {
-    return APPLICATION_UPDATE_URL;
+    // cmakedefine leaves the macro undefined when APPLICATION_UPDATE_URL is empty, which is how a
+    // build says it ships no update server. An empty address is the honest answer for it.
+#ifdef APPLICATION_UPDATE_URL
+    return QStringLiteral(APPLICATION_UPDATE_URL);
+#else
+    return {};
+#endif
 }
 
 qint64 Theme::newBigFolderSizeLimit() const

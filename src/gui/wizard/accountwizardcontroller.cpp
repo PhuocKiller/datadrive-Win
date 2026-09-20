@@ -133,6 +133,14 @@ void AccountWizardController::initialiseAccount()
     const auto hasForcedConcreteServerUrl =
         Theme::instance()->forceOverrideServerUrl() && !defaultUrl.isEmpty() && !Theme::instance()->multipleOverrideServers();
     setServerUrlEditable(!hasForcedConcreteServerUrl && !overrideServerSelectionRequired());
+
+    // A build that pins the server and collects the credentials itself never shows the server
+    // page. Opening on it anyway makes it flash past once the window calls submitServerUrl(), so
+    // the wizard starts on the credentials page anyway and the server check runs behind it.
+    _opensOnLoginPage = startLoginFlowAutomatically() && Theme::instance()->forceInAppLogin();
+    if (_opensOnLoginPage) {
+        _currentStep = BasicAuthStep;
+    }
 }
 
 void AccountWizardController::initialiseOverrideServerChoices()
@@ -1232,8 +1240,23 @@ void AccountWizardController::cancel()
     Q_EMIT finished(QDialog::Rejected);
 }
 
+bool AccountWizardController::canGoBack() const
+{
+    // The credentials page is the first page of a build that pins the server, so there is nothing
+    // behind it to return to.
+    if (_opensOnLoginPage && (_currentStep == BasicAuthStep || _currentStep == BrowserAuthStep)) {
+        return false;
+    }
+
+    return _currentStep == BrowserAuthStep || _currentStep == BasicAuthStep || _currentStep == SyncOptionsStep;
+}
+
 void AccountWizardController::goBack()
 {
+    if (!canGoBack()) {
+        return;
+    }
+
     setErrorText({});
     if (_currentStep == BrowserAuthStep || _currentStep == BasicAuthStep || _currentStep == SyncOptionsStep) {
         discardFlow2Auth();

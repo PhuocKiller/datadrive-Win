@@ -5,21 +5,23 @@
 # keep the application name and short name the same or different for dev and prod build
 # or some migration logic will behave differently for each build
 if(NEXTCLOUD_DEV)
-    set( APPLICATION_NAME       "NextcloudDev" )
-    set( APPLICATION_SHORTNAME  "NextcloudDev" )
-    set( APPLICATION_EXECUTABLE "nextclouddev" )
-    set( APPLICATION_ICON_NAME  "Nextcloud" )
+    set( APPLICATION_NAME       "DataDriveDev" )
+    set( APPLICATION_SHORTNAME  "DataDriveDev" )
+    set( APPLICATION_EXECUTABLE "datadrivedev" )
+    set( APPLICATION_ICON_NAME  "DataDrive" )
 else()
-    set( APPLICATION_NAME       "Nextcloud" )
-    set( APPLICATION_SHORTNAME  "Nextcloud" )
-    set( APPLICATION_EXECUTABLE "nextcloud" )
+    set( APPLICATION_NAME       "DataDrive" )
+    set( APPLICATION_SHORTNAME  "DataDrive" )
+    set( APPLICATION_EXECUTABLE "datadrive" )
     set( APPLICATION_ICON_NAME  "${APPLICATION_SHORTNAME}" )
 endif()
 
 set( APPLICATION_CONFIG_NAME "${APPLICATION_EXECUTABLE}" )
-set( APPLICATION_DOMAIN     "nextcloud.com" )
-set( APPLICATION_VENDOR     "Nextcloud GmbH" )
-set( APPLICATION_UPDATE_URL "https://updates.nextcloud.org/client/" CACHE STRING "URL for updater" )
+set( APPLICATION_DOMAIN     "datadrive.vn" )
+set( APPLICATION_VENDOR     "Tran Huy Phuoc" )
+# Empty on purpose: this build ships no update server, and BUILD_UPDATER below is off. Leaving
+# the upstream address here would point the updater at releases of a different product.
+set( APPLICATION_UPDATE_URL "" CACHE STRING "URL for updater" )
 set( APPLICATION_HELP_URL   "" CACHE STRING "URL for the help menu" )
 
 # Default macOS builds (Nextcloud + NextcloudDev) use the Icon Composer (.icon)
@@ -92,14 +94,14 @@ set( APPLICATION_HOMEPAGE_URL "https://datadrive.vn" CACHE STRING "URL opened by
 # plain password: the browser flow is what carries two-factor authentication and SSO, and it
 # is also what returns an app password rather than the account password.
 option( APPLICATION_FORCE_IN_APP_LOGIN "Ask for credentials in the client instead of using the browser login flow" ON )
-set( APPLICATION_REV_DOMAIN "com.nextcloud.desktopclient" )
-set( APPLICATION_REV_DOMAIN_DBUS "desktopclient.nextcloud.com" )
+set( APPLICATION_REV_DOMAIN "vn.datadrive.desktopclient" )
+set( APPLICATION_REV_DOMAIN_DBUS "desktopclient.datadrive.vn" )
 set( DEVELOPMENT_TEAM "NKUJUXUJ3B" CACHE STRING "Apple Development Team ID" )
-set( APPLICATION_VIRTUALFILE_SUFFIX "nextcloud" CACHE STRING "Virtual file suffix (not including the .)")
+set( APPLICATION_VIRTUALFILE_SUFFIX "datadrive" CACHE STRING "Virtual file suffix (not including the .)")
 set( APPLICATION_OCSP_STAPLING_ENABLED OFF )
 set( APPLICATION_FORBID_BAD_SSL OFF )
 
-set( LINUX_PACKAGE_SHORTNAME "nextcloud" )
+set( LINUX_PACKAGE_SHORTNAME "datadrive" )
 set( LINUX_APPLICATION_ID "${APPLICATION_REV_DOMAIN}.${LINUX_PACKAGE_SHORTNAME}")
 
 set( THEME_CLASS            "NextcloudTheme" )
@@ -111,7 +113,18 @@ set( MAC_INSTALLER_BACKGROUND_FILE "${CMAKE_SOURCE_DIR}/admin/osx/installer-back
 # set( APPLICATION_LICENSE    "${OEM_THEME_DIR}/license.txt )
 
 ## Updater options
-option( BUILD_UPDATER "Build updater" ON )
+option( BUILD_UPDATER "Build updater" OFF )
+
+# This is a new product rather than a renamed installation, so there is no earlier version of it
+# to carry accounts over from. Leaving migration on makes the client treat a Nextcloud or
+# ownCloud configuration that happens to sit in the user profile as its own history, and the
+# import path then opens a dialog - which kills the command line tool outright, because that one
+# runs without a QApplication.
+#
+# CMakeLists.txt declares both as option() further down, but this file is included before that,
+# and CMP0077 leaves an already-set variable alone.
+set( DISABLE_ACCOUNT_MIGRATION ON )
+set( APPLICATION_DISPLAY_LEGACY_IMPORT_DIALOG OFF )
 
 option( WITH_PROVIDERS "Build with providers list" ON )
 
@@ -125,7 +138,7 @@ option( DO_NOT_USE_PROXY "Do not use system wide proxy, instead always do a dire
 option( WIN_DISABLE_USERNAME_PREFILL "Do not prefill the Windows user name when creating a new account" OFF )
 
 ## Theming options
-set(NEXTCLOUD_BACKGROUND_COLOR "#0082c9" CACHE STRING "Default Nextcloud background color")
+set(NEXTCLOUD_BACKGROUND_COLOR "#0A93E0" CACHE STRING "Default DataDrive background color")
 set( APPLICATION_WIZARD_HEADER_BACKGROUND_COLOR ${NEXTCLOUD_BACKGROUND_COLOR} CACHE STRING "Hex color of the wizard header background")
 set( APPLICATION_WIZARD_HEADER_TITLE_COLOR "#ffffff" CACHE STRING "Hex color of the text in the wizard header")
 option( APPLICATION_WIZARD_USE_CUSTOM_LOGO "Use the logo from ':/client/theme/colored/wizard_logo.(png|svg)' else the default application icon is used" ON )
@@ -135,17 +148,17 @@ option( APPLICATION_WIZARD_USE_CUSTOM_LOGO "Use the logo from ':/client/theme/co
 #
 if(WIN32)
     # Context Menu
-    set( WIN_SHELLEXT_CONTEXT_MENU_GUID      "{BC6988AB-ACE2-4B81-84DC-DC34F9B24401}" )
+    set( WIN_SHELLEXT_CONTEXT_MENU_GUID      "{7741492A-5A94-4FAE-8B8D-F1BF100E461B}" )
 
     # Overlays
-    set( WIN_SHELLEXT_OVERLAY_GUID_ERROR     "{E0342B74-7593-4C70-9D61-22F294AAFE05}" )
-    set( WIN_SHELLEXT_OVERLAY_GUID_OK        "{E1094E94-BE93-4EA2-9639-8475C68F3886}" )
-    set( WIN_SHELLEXT_OVERLAY_GUID_OK_SHARED "{E243AD85-F71B-496B-B17E-B8091CBE93D2}" )
-    set( WIN_SHELLEXT_OVERLAY_GUID_SYNC      "{E3D6DB20-1D83-4829-B5C9-941B31C0C35A}" )
-    set( WIN_SHELLEXT_OVERLAY_GUID_WARNING   "{E4977F33-F93A-4A0A-9D3C-83DEA0EE8483}" )
+    set( WIN_SHELLEXT_OVERLAY_GUID_ERROR     "{64B9DD11-46E5-4B8E-9C80-D3D583546165}" )
+    set( WIN_SHELLEXT_OVERLAY_GUID_OK        "{066CAB34-2660-49D0-9F1B-40C466F9E92E}" )
+    set( WIN_SHELLEXT_OVERLAY_GUID_OK_SHARED "{003D105A-DB19-44B5-9F16-655DE7DF8803}" )
+    set( WIN_SHELLEXT_OVERLAY_GUID_SYNC      "{7A913F6E-D394-406B-B1FC-728814ADC671}" )
+    set( WIN_SHELLEXT_OVERLAY_GUID_WARNING   "{05A8FEF3-C920-4A36-91C2-FECB49696B6D}" )
 
     # MSI Upgrade Code (without brackets)
-    set( WIN_MSI_UPGRADE_CODE                "FD2FCCA9-BB8F-4485-8F70-A0621B84A7F4" )
+    set( WIN_MSI_UPGRADE_CODE                "4B45DD25-95EF-424F-881D-E0C2435490B9" )
 
     # Windows build options
     option( BUILD_WIN_MSI "Build MSI scripts and helper DLL" OFF )

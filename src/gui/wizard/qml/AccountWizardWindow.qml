@@ -235,6 +235,7 @@ WizardStyledWindow {
                 visible: root.controller
                     && root.controller.currentStep !== AccountWizardController.ServerStep
                     && root.controller.currentStep !== AccountWizardController.BrowserAuthStep
+                    && root.controller.canGoBack
                 enabled: root.controller && !root.controller.busy
                 Layout.fillWidth: root.controller
                     && (root.controller.currentStep === AccountWizardController.BasicAuthStep
