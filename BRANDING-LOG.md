@@ -421,3 +421,54 @@ rồi chạm vào dữ liệu đã chết. Đây là race condition lúc teardow
 
 **Không sửa.** `csync_vio_local_readdir` nằm trong `src/csync/` — vùng cấm theo Quy tắc 1,
 và sửa race trong sync engine nằm ngoài phạm vi đổi thương hiệu.
+
+---
+
+# BÁO CÁO TỔNG KẾT
+
+## Sản phẩm
+
+| Thứ | Đường dẫn |
+|---|---|
+| **Bộ cài** | `C:\Users\tranh\nextcloud-build\DataDrive-Setup.exe` (42.5 MB) |
+| **Shortcut** | `CAI DAT DataDrive` trên màn hình |
+| Ứng dụng đã deploy | `C:\CraftRoot\windows-msvc2022_64-cl\bin\datadrive.exe` (10.7 MB) |
+| Công cụ dòng lệnh | `datadrivecmd.exe` |
+
+Binary đổi tên đầy đủ: `datadrive.exe`, `datadrivecmd.exe`, `datadrivesync.dll`,
+`datadrive_csync.dll`, `datadrivesync_vfs_cfapi.dll`, `datadrivesync_vfs_suffix.dll`.
+
+## Git
+
+Nhánh `branding/datadrive`, **không** đụng `master`. Hai commit:
+
+- `60edd9eee4` — ghim server, ép đăng nhập trong app, nút Home page (9 file)
+- `42aa26feb9` — đổi thương hiệu DataDrive (46 file, +812 −30)
+
+## Kiểm chứng
+
+- Build: 5 lần, lần cuối thành công cả 4 bước configure/compile/install/qmerge, 0 lỗi
+- Test: **85/86 pass**. Test còn lại (`RemoteDiscoveryTest`) đã chứng minh bằng thực nghiệm
+  là lỗi có sẵn của upstream — bản Nextcloud gốc chưa sửa gì crash y hệt
+- `clang-format` đã chạy qua hook pre-commit của repo, không còn gì để format
+- Chuỗi thương hiệu đã nằm trong binary, xác nhận bằng cách quét `nextcloudsync.dll`
+
+## Chưa làm / cần bạn xem lại
+
+1. **Chưa kiểm chứng bằng mắt.** Chưa ai mở app xem giao diện thật. Test chứng minh logic
+   đúng, không thay cho việc nhìn.
+2. **`run-clang-tidy` chưa chạy.** `AGENTS.md` yêu cầu. Công cụ đã có trong CraftRoot nhưng
+   cần `./build` được cấu hình, trong khi craft build ở `C:\_\<hash>\build`.
+3. **Ba icon tạm** — xem mục "Giải pháp tạm".
+4. **Ba bản vá ngoài repo** trong `C:\CraftRoot` — xem mục "Vá ngoài repo". Craft có thể ghi đè.
+5. **Chuỗi "Nextcloud" còn trong 64 file dịch** — cờ E, cố ý không sửa.
+6. **Tài khoản bật 2FA sẽ không đăng nhập được** — hệ quả của việc bỏ luồng trình duyệt.
+
+## Bước tiếp theo nên làm
+
+1. Gỡ bản Nextcloud cũ trong Settings → Apps, rồi chạy `DataDrive-Setup.exe`, kiểm tra:
+   tên/icon trong bộ cài, shortcut Start Menu, app mở thẳng trang đăng nhập, nút Home page.
+2. Đăng nhập thử tài khoản thật trên `storage.datadrive.vn` (tài khoản **không** bật 2FA).
+3. Thiết kế hai icon còn tạm: biến thể lồng thư mục Windows và biến thể tile Start Menu.
+4. Cân nhắc đưa ba bản vá blueprint vào một repo blueprint riêng của bạn, thay vì vá tay
+   trong `C:\CraftRoot` mỗi lần craft ghi đè.
