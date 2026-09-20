@@ -54,6 +54,8 @@ class OWNCLOUDSYNC_EXPORT Theme : public QObject
     Q_PROPERTY(bool forceOverrideServerUrl READ forceOverrideServerUrl WRITE setForceOverrideServerUrl NOTIFY forceOverrideServerUrlChanged)
     Q_PROPERTY(bool isVfsEnabled READ isVfsEnabled WRITE setVfsEnabled NOTIFY vfsEnabledChanged)
     Q_PROPERTY(bool startLoginFlowAutomatically READ startLoginFlowAutomatically WRITE setStartLoginFlowAutomatically NOTIFY startLoginFlowAutomaticallyChanged)
+    Q_PROPERTY(bool forceInAppLogin READ forceInAppLogin CONSTANT)
+    Q_PROPERTY(QString homepageUrl READ homepageUrl CONSTANT)
 #ifndef TOKEN_AUTH_ONLY
     Q_PROPERTY(QColor wizardHeaderTitleColor READ wizardHeaderTitleColor CONSTANT)
     Q_PROPERTY(QColor wizardHeaderBackgroundColor READ wizardHeaderBackgroundColor CONSTANT)
@@ -279,7 +281,24 @@ public:
      * When true, the browser will get opened automatically
      */
     [[nodiscard]] bool startLoginFlowAutomatically() const;
-    
+
+    /**
+     * Ask for the username and password inside the client
+     *
+     * When true the wizard shows its own credentials page instead of handing the login over to
+     * a browser. Two-factor authentication and SSO need the browser flow, so a build that turns
+     * this on only suits deployments whose accounts authenticate with a plain password.
+     */
+    [[nodiscard]] bool forceInAppLogin() const;
+
+    /**
+     * Public website of the deployment, or an empty string when the build defines none
+     *
+     * This is the site users know, not the sync server, so the wizard offers it as a separate
+     * way out of the login page.
+     */
+    [[nodiscard]] QString homepageUrl() const;
+
     /**
      * Enable OCSP stapling for SSL handshakes
      *

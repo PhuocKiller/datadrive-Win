@@ -38,6 +38,16 @@ public:
         controller._account = Account::create();
         controller._account->setUrl(url);
     }
+
+    static void determineAuthType(AccountWizardController &controller)
+    {
+        controller.slotDetermineAuthType();
+    }
+
+    static void setCurrentStep(AccountWizardController &controller, AccountWizardController::Step step)
+    {
+        controller.setCurrentStep(step);
+    }
 };
 
 }
@@ -353,6 +363,62 @@ private Q_SLOTS:
         QCOMPARE(controller.serverUrl(), QStringLiteral("https://cloud.example"));
         QVERIFY(!controller.serverUrlEditable());
         QVERIFY(controller.startLoginFlowAutomatically());
+    }
+
+    void inAppLoginBuildAsksForCredentialsInsteadOfOpeningTheBrowser()
+    {
+        if (!Theme::instance()->forceInAppLogin()) {
+            QSKIP("Build uses the browser login flow.");
+        }
+
+        AccountWizardController controller;
+        AccountWizardControllerTestAccess::setCurrentStep(controller, AccountWizardController::ServerStep);
+
+        QSignalSpy stepSpy(&controller, &AccountWizardController::currentStepChanged);
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QCOMPARE(stepSpy.count(), 1);
+        // Nothing is in flight, so the page must be ready for typing rather than showing a spinner.
+        QVERIFY(!controller.busy());
+        QVERIFY(controller.errorText().isEmpty());
+        QVERIFY(controller.authStatusText().isEmpty());
+    }
+
+    void inAppLoginBuildNeverLandsOnTheBrowserStep()
+    {
+        if (!Theme::instance()->forceInAppLogin()) {
+            QSKIP("Build uses the browser login flow.");
+        }
+
+        AccountWizardController controller;
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+
+        QVERIFY(controller.currentStep() != AccountWizardController::BrowserAuthStep);
+
+        // Running the step again must not bounce the user out of the credentials page.
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+    }
+
+    void homepageButtonIsOfferedOnlyWhenTheBuildDefinesTheUrl()
+    {
+        AccountWizardController controller;
+
+        QCOMPARE(controller.hasHomepageUrl(), !Theme::instance()->homepageUrl().isEmpty());
+    }
+
+    void openingTheHomepageWithoutAUrlIsHarmless()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->homepageUrl().isEmpty()) {
+            QSKIP("Build defines a homepage URL, so nothing is skipped here.");
+        }
+
+        AccountWizardController controller;
+        QVERIFY(!controller.hasHomepageUrl());
+        // Must not reach the browser, and must not crash on the empty URL.
+        controller.openHomepage();
     }
 
 #ifdef Q_OS_LINUX

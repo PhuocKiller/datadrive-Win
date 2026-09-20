@@ -43,6 +43,7 @@ class AccountWizardController : public QObject
     Q_PROPERTY(bool serverUrlEditable READ serverUrlEditable NOTIFY serverUrlEditableChanged)
     Q_PROPERTY(bool overrideServerSelectionRequired READ overrideServerSelectionRequired NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(bool startLoginFlowAutomatically READ startLoginFlowAutomatically CONSTANT)
+    Q_PROPERTY(bool hasHomepageUrl READ hasHomepageUrl CONSTANT)
     Q_PROPERTY(QStringList overrideServerNames READ overrideServerNames NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(int overrideServerIndex READ overrideServerIndex WRITE setOverrideServerIndex NOTIFY overrideServerSelectionChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
@@ -189,6 +190,8 @@ public:
     Q_INVOKABLE void copyLoginLink();
     Q_INVOKABLE void openSignup();
     Q_INVOKABLE void openSelfHostedServerGuide();
+    Q_INVOKABLE void openHomepage();
+    [[nodiscard]] bool hasHomepageUrl() const;
     Q_INVOKABLE void openProxySettings();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void goBack();

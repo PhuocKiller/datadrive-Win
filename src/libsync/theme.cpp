@@ -463,6 +463,30 @@ Theme::Theme()
 #endif
 #ifdef APPLICATION_SERVER_URL
     setOverrideServerUrl(QString::fromUtf8(APPLICATION_SERVER_URL));
+    // A build that both ships a server address and forbids changing it has nothing to ask on the
+    // server page, so the wizard goes straight to the login step. AccountWizardController checks
+    // the remaining preconditions, such as the address actually being set.
+    if (_forceOverrideServerUrl) {
+        _startLoginFlowAutomatically = true;
+    }
+#endif
+}
+
+bool Theme::forceInAppLogin() const
+{
+#if APPLICATION_FORCE_IN_APP_LOGIN
+    return true;
+#else
+    return false;
+#endif
+}
+
+QString Theme::homepageUrl() const
+{
+#ifdef APPLICATION_HOMEPAGE_URL
+    return QString::fromUtf8(APPLICATION_HOMEPAGE_URL);
+#else
+    return {};
 #endif
 }
 

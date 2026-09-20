@@ -108,6 +108,58 @@ private Q_SLOTS:
 
         QCOMPARE(OCC::Theme::isHidpi(&paintDevice), false);
     }
+
+    void brandedServerUrlIsEnforcedAndStartsTheLoginFlow()
+    {
+        const auto theme = OCC::Theme::instance();
+
+#if defined(APPLICATION_SERVER_URL) && defined(APPLICATION_SERVER_URL_ENFORCE)
+        QCOMPARE(theme->overrideServerUrl(), QString::fromUtf8(APPLICATION_SERVER_URL));
+        QVERIFY(theme->forceOverrideServerUrl());
+        // With nothing left to ask on the server page the wizard must open on the login step.
+        QVERIFY(theme->startLoginFlowAutomatically());
+#else
+        QVERIFY(theme->overrideServerUrl().isEmpty());
+        QVERIFY(!theme->startLoginFlowAutomatically());
+#endif
+    }
+
+    void homepageUrlMatchesTheBrandingDefine()
+    {
+        const auto homepageUrl = OCC::Theme::instance()->homepageUrl();
+
+#ifdef APPLICATION_HOMEPAGE_URL
+        QCOMPARE(homepageUrl, QString::fromUtf8(APPLICATION_HOMEPAGE_URL));
+        // A button is only worth showing for an address the browser can actually open.
+        const QUrl parsedHomepageUrl{homepageUrl};
+        QVERIFY(parsedHomepageUrl.isValid());
+        QVERIFY(!parsedHomepageUrl.host().isEmpty());
+        QVERIFY(parsedHomepageUrl.scheme() == QStringLiteral("https"));
+#else
+        QVERIFY(homepageUrl.isEmpty());
+#endif
+    }
+
+    void homepageUrlIsADifferentHostThanTheServer()
+    {
+#if defined(APPLICATION_HOMEPAGE_URL) && defined(APPLICATION_SERVER_URL)
+        const auto theme = OCC::Theme::instance();
+        // The button exists to send users to the public website rather than the sync server, so
+        // pointing both at one host would make it pointless.
+        QVERIFY(QUrl(theme->homepageUrl()).host() != QUrl(theme->overrideServerUrl()).host());
+#else
+        QSKIP("Build defines no branded homepage and server URL pair.");
+#endif
+    }
+
+    void forceInAppLoginMatchesTheBrandingDefine()
+    {
+#if APPLICATION_FORCE_IN_APP_LOGIN
+        QVERIFY(OCC::Theme::instance()->forceInAppLogin());
+#else
+        QVERIFY(!OCC::Theme::instance()->forceInAppLogin());
+#endif
+    }
 };
 
 QTEST_GUILESS_MAIN(TestTheme)

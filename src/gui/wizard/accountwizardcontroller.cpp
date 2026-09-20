@@ -850,7 +850,7 @@ void AccountWizardController::slotFoundServer(const QUrl &url, const QJsonObject
     }
 
     setServerDisplayName(url.host());
-    setAuthStatusText(tr("Preparing browser login") + QStringLiteral("…"));
+    setAuthStatusText((Theme::instance()->forceInAppLogin() ? tr("Preparing login") : tr("Preparing browser login")) + QStringLiteral("…"));
 
     if (_account->isPublicShareLink()) {
         setPublicShareSetup(true);
@@ -896,6 +896,17 @@ void AccountWizardController::slotNoServerFoundTimeout(const QUrl &url)
 
 void AccountWizardController::slotDetermineAuthType()
 {
+    // A build that asks for credentials itself has no use for the answer: DetermineAuthTypeJob
+    // reports LoginFlowV2 for every server from version 16 on, which is exactly the browser flow
+    // this build replaces. Skipping the job also spares the two extra requests it makes.
+    if (Theme::instance()->forceInAppLogin()) {
+        setBusy(false);
+        setAuthStatusText({});
+        setErrorText({});
+        setCurrentStep(BasicAuthStep);
+        return;
+    }
+
     auto *job = new DetermineAuthTypeJob(_account, this);
     connect(job, &DetermineAuthTypeJob::authType, this, [this](DetermineAuthTypeJob::AuthType type) {
         switch (type) {
@@ -954,6 +965,21 @@ void AccountWizardController::openSignup()
 void AccountWizardController::openSelfHostedServerGuide()
 {
     Utility::openBrowser(QUrl(QStringLiteral("https://docs.nextcloud.com/server/latest/admin_manual/installation/#installation")));
+}
+
+bool AccountWizardController::hasHomepageUrl() const
+{
+    return !Theme::instance()->homepageUrl().isEmpty();
+}
+
+void AccountWizardController::openHomepage()
+{
+    const auto homepage = QUrl(Theme::instance()->homepageUrl());
+    if (!homepage.isValid()) {
+        return;
+    }
+
+    Utility::openBrowser(homepage);
 }
 
 void AccountWizardController::openProxySettings()

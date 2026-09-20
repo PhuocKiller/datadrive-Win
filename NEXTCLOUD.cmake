@@ -79,8 +79,19 @@ if(APPLE)
 endif()
 
 set( APPLICATION_ICON_SET   "SVG" )
-set( APPLICATION_SERVER_URL "" CACHE STRING "URL for the server to use. If entered, the UI field will be pre-filled with it" )
+set( APPLICATION_SERVER_URL "https://storage.datadrive.vn" CACHE STRING "URL for the server to use. If entered, the UI field will be pre-filled with it" )
 set( APPLICATION_SERVER_URL_ENFORCE ON ) # If set and APPLICATION_SERVER_URL is defined, the server can only connect to the pre-defined URL
+
+# Public website shown behind the "Home page" button on the credentials page. This is the
+# marketing site users know, which is deliberately a different host from the sync server in
+# APPLICATION_SERVER_URL. Leave empty to hide the button.
+set( APPLICATION_HOMEPAGE_URL "https://datadrive.vn" CACHE STRING "URL opened by the Home page button in the login wizard" )
+
+# Ask the user for their username and password inside the client instead of handing the login
+# over to a browser. Only turn this on for a deployment whose accounts authenticate with a
+# plain password: the browser flow is what carries two-factor authentication and SSO, and it
+# is also what returns an app password rather than the account password.
+option( APPLICATION_FORCE_IN_APP_LOGIN "Ask for credentials in the client instead of using the browser login flow" ON )
 set( APPLICATION_REV_DOMAIN "com.nextcloud.desktopclient" )
 set( APPLICATION_REV_DOMAIN_DBUS "desktopclient.nextcloud.com" )
 set( DEVELOPMENT_TEAM "NKUJUXUJ3B" CACHE STRING "Apple Development Team ID" )
