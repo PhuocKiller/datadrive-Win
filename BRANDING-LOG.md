@@ -472,3 +472,59 @@ Nhánh `branding/datadrive`, **không** đụng `master`. Hai commit:
 3. Thiết kế hai icon còn tạm: biến thể lồng thư mục Windows và biến thể tile Start Menu.
 4. Cân nhắc đưa ba bản vá blueprint vào một repo blueprint riêng của bạn, thay vì vá tay
    trong `C:\CraftRoot` mỗi lần craft ghi đè.
+
+---
+
+## Sao lưu: đưa file ngoài repo vào `packaging/craft/`
+
+Năm file mà bản build phụ thuộc nhưng trước đó chỉ tồn tại trong `C:\CraftRoot` hoặc thư mục
+tạm, nay đã nằm trong repo kèm `README.md` hướng dẫn dựng lại. Mất máy ảo cũng không mất gì.
+
+### Lỗi thứ 5 của blueprint — phát hiện sau khi cài thử
+
+Cài xong không có app để mở. Nguyên nhân: `blacklist.txt` lọc executable bằng whitelist ngược
+
+```
+bin/(?!(nextcloud|nextcloudcmd|QtWebEngineProcess)).*\.exe
+```
+
+Sau khi đổi tên, `datadrive.exe` rơi vào diện bị loại khỏi gói. Bộ cài vẫn chép đủ 2155 file
+và vẫn tạo shortcut, nhưng shortcut trỏ tới file không tồn tại.
+
+**Tôi đã bỏ sót** vì chỉ kiểm tra binary trong `CraftRoot\bin` (nơi build ra, có đủ) mà không
+kiểm tra bên trong gói đã đóng. Từ nay phải xác minh ở cả hai chỗ.
+
+### Ba yêu cầu mới, đã làm
+
+| Việc | Cách | Xác nhận trong `.nsi` |
+|---|---|---|
+| Phiên bản 1.0.0 | `defines["version"]` | `!define version "1.0.0"` |
+| Tự mở app sau khi cài | `MUI_FINISHPAGE_RUN` chèn qua placeholder `sections_page` (nằm trước `MUI_PAGE_FINISH`) | `!define MUI_FINISHPAGE_RUN "$INSTDIR\bin\datadrive.exe"` |
+| Shortcut ngoài Desktop | `registry_hook`, chạy trong install section | `CreateShortCut "$DESKTOP\DataDrive.lnk"` |
+
+Thêm `Section un.DesktopShortcut` để gỡ cài đặt không để lại shortcut chết — bộ gỡ chỉ biết
+dọn thư mục Start Menu.
+
+## Khả năng chạy trên máy Windows khác — đã kiểm chứng
+
+| Yếu tố | Kết quả |
+|---|---|
+| Runtime MSVC | **Đóng gói kèm** 12 DLL (`msvcp140`, `vcruntime140`...). Máy đích **không cần** cài VC++ Redistributable |
+| Kiến trúc | x64 (`machine=0x8664`). Windows ARM64 chạy được qua giả lập |
+| Windows tối thiểu | **Windows 10**. `CMakeLists.txt:294` đặt `_WIN32_WINNT=0x0A00`. Windows 7/8 không chạy |
+| Dung lượng | Bộ cài 45.8 MB, cài xong chiếm 249 MB |
+| Chữ ký số | **KHÔNG CÓ** (`NotSigned`) |
+
+### Vấn đề thật khi phát hành: bộ cài chưa ký
+
+`craftmaster.ini` để `CRAFT_CODESIGN_CERTIFICATE` rỗng và `SIGN_PACKAGE = False`.
+
+Hệ quả trên máy người dùng: Windows SmartScreen chặn với thông báo *"Windows protected your
+PC"*, phải bấm "More info" → "Run anyway" mới cài được. Nhiều người sẽ bỏ cuộc ngay tại đó,
+và một số phần mềm diệt virus sẽ cách ly file.
+
+Khắc phục: mua chứng thư Code Signing (OV khoảng 200-400 USD/năm, EV khoảng 300-600 USD/năm
+nhưng qua SmartScreen ngay lập tức, OV phải tích luỹ uy tín dần). Sau đó ký bằng `signtool`
+hoặc đặt `CRAFT_CODESIGN_CERTIFICATE` trong craftmaster.ini.
+
+Đây là việc cần tiền và giấy tờ doanh nghiệp, không phải việc kỹ thuật tôi tự làm được.
