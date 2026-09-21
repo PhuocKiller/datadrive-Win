@@ -115,8 +115,13 @@ class Package(CMakePackageBase):
         # The template defines this placeholder ahead of MUI_PAGE_FINISH, which is where
         # MUI_FINISHPAGE_RUN has to be set for the finish page to offer to start the app.
         self.defines["sections_page"] = "\n".join([
-            f'!define MUI_FINISHPAGE_RUN "{appExecutable}"',
+            # A plain MUI_FINISHPAGE_RUN starts the client with the installer's administrator
+            # token. A sync client running elevated is cut off from the user's non-elevated
+            # Explorer and windows by UIPI, and writes into the sync folder as administrator.
+            # The function hands the launch to Explorer, which starts it as the logged-in user.
+            "!define MUI_FINISHPAGE_RUN",
             '!define MUI_FINISHPAGE_RUN_TEXT "Start DataDrive"',
+            "!define MUI_FINISHPAGE_RUN_FUNCTION LaunchDataDriveAsUser",
         ])
 
         # The desktop shortcut has to be created after the payload is unpacked. registry_hook runs
@@ -126,6 +131,10 @@ class Package(CMakePackageBase):
         # on a components page is un_sections, so the install section goes in there; NSIS runs
         # plain sections in the order they appear, whatever comes around them.
         desktopShortcutSection = [
+            "Function LaunchDataDriveAsUser",
+            f'  Exec \'"$WINDIR\\explorer.exe" "{appExecutable}"\'',
+            "FunctionEnd",
+            "",
             "Section",
             f'  CreateShortCut "$DESKTOP\\DataDrive.lnk" "{appExecutable}" "" "{appExecutable}" 0',
             # SHCNE_ASSOCCHANGED: tells Explorer to drop cached icons and redraw the desktop now.

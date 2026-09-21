@@ -623,3 +623,19 @@ sau giải nén mà không bật trang Components — `sections` sẽ ghi đè `
 Kiểm chứng: cài `/S` → shortcut ở `C:\Users\Public\Desktop`, icon trích ra là DD. Gỡ `/S` →
 Program Files, shortcut, Start Menu, registry, script tạm đều sạch (script chạy hết lần này).
 Chưa thử vòng có đăng nhập tài khoản trong lượt này; phần HKLM SyncRoot đã thử riêng trước đó.
+
+---
+
+## Đổi tên thư mục/bộ cài; app mở từ trang Finish chạy quyền Admin
+
+- Thư mục bộ cài: `C:\Users\tranh\datadrive-win-build\`, file `datadrive-win-setup.exe`.
+- Báo lỗi: sau khi kết nối server, click icon Desktop không hiện gì.
+  - Tái hiện KHÔNG được: lần mở thứ hai luôn gửi `MSG_SHOWMAINDIALOG` tới instance đang chạy
+    (log `Running for ... sec`), cửa sổ "DataDrive Settings" hiện ra — thử với instance quyền
+    thường lẫn quyền Admin, mở qua shortcut Desktop. Chỉ có 1 shortcut, trỏ đúng.
+  - Khiếm khuyết thật tìm được trên đúng đường người dùng đi: `MUI_FINISHPAGE_RUN` mở app bằng
+    token Admin của bộ cài. App đồng bộ chạy Admin bị UIPI cắt khỏi Explorer/cửa sổ quyền
+    thường và ghi vào thư mục đồng bộ với quyền Admin.
+  - Sửa: `MUI_FINISHPAGE_RUN_FUNCTION LaunchDataDriveAsUser` → `Exec explorer.exe "<exe>"`.
+    Kiểm chứng: gọi từ tiến trình Admin, `datadrive.exe` mới chạy quyền thường (TokenElevation=0).
+  - **Chưa xác nhận** đây là nguyên nhân của triệu chứng người dùng thấy; cần người dùng thử lại.
