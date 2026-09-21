@@ -4,18 +4,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <QInputDialog>
-#include <QLabel>
-#include <QDesktopServices>
-#include <QNetworkReply>
-#include <QTimer>
-#include <QBuffer>
 #include "creds/httpcredentialsgui.h"
-#include "theme.h"
 #include "account.h"
 #include "networkjobs.h"
-#include <QMessageBox>
+#include "theme.h"
+#include <QApplication>
+#include <QBuffer>
+#include <QDesktopServices>
+#include <QInputDialog>
+#include <QLabel>
+#include <QNetworkReply>
+#include <QTimer>
+
 #include "common/asserts.h"
+#include <QMessageBox>
+#include <memory>
 
 using namespace QKeychain;
 
@@ -34,6 +37,14 @@ void HttpCredentialsGui::askFromUser()
 
 void HttpCredentialsGui::askFromUserAsync()
 {
+    // A build that asks for credentials in the client set this account up with a password, but
+    // the server still answers LoginFlowV2 below, like every server from version 16 on. Asking it
+    // would drop the prompt as a "bad http auth type" and leave the account signed out.
+    if (Theme::instance()->forceInAppLogin()) {
+        showDialog();
+        return;
+    }
+
     // First, we will check what kind of auth we need.
     auto job = new DetermineAuthTypeJob(_account->sharedFromThis(), this);
     QObject::connect(job, &DetermineAuthTypeJob::authType, this, [this](DetermineAuthTypeJob::AuthType type) {
@@ -58,7 +69,9 @@ void HttpCredentialsGui::showDialog()
                           Utility::escape(_user),
                           Utility::escape(_account->displayName()));
 
-    QString reqTxt = requestAppPasswordText(_account);
+    // Accounts in an in-app login build sign in with their normal password, so pointing them at the
+    // web interface to create an app password would only confuse.
+    const auto reqTxt = Theme::instance()->forceInAppLogin() ? QString() : requestAppPasswordText(_account);
     if (!reqTxt.isEmpty()) {
         msg += QLatin1String("<br>") + reqTxt + QLatin1String("<br>");
     }
@@ -69,8 +82,11 @@ void HttpCredentialsGui::showDialog()
             + QLatin1String("<br>");
     }
 
-    auto *dialog = new QInputDialog();
+    // Owned by the active window and window-modal: unparented it can open underneath the settings
+    // dialog, where the Log in button behind it has already turned into Log out.
+    auto *dialog = new QInputDialog(QApplication::activeWindow());
     dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    dialog->setWindowModality(Qt::WindowModal);
     dialog->setWindowTitle(tr("Enter Password"));
     dialog->setLabelText(msg);
     dialog->setTextValue(_previousPassword);
@@ -80,8 +96,20 @@ void HttpCredentialsGui::showDialog()
         dialogLabel->setTextFormat(Qt::RichText);
     }
 
+    // A parent window closing takes the prompt with it without emitting finished(); treat that as
+    // a cancel so the account does not wait for an answer forever.
+    const auto answered = std::make_shared<bool>(false);
+    connect(dialog, &QObject::destroyed, this, [this, answered] {
+        if (!*answered) {
+            Q_EMIT asked();
+        }
+    });
+
     dialog->open();
-    connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
+    dialog->raise();
+    dialog->activateWindow();
+    connect(dialog, &QDialog::finished, this, [this, dialog, answered](int result) {
+        *answered = true;
         if (result == QDialog::Accepted) {
             _password = dialog->textValue();
             _ready = true;

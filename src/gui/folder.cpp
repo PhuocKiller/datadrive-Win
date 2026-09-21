@@ -78,6 +78,15 @@ Folder::Folder(const FolderDefinition &definition,
     }
     _syncResult.setStatus(status);
 
+#ifdef Q_OS_WIN
+    // A lock left from the last session, when the account was signed out, would make the folder
+    // look unreadable to the checks below. It is put back once the folder is up if the account is
+    // still signed out.
+    if (_definition.virtualFilesMode == Vfs::WindowsCfApi) {
+        SyncFolderShellStatus::setLocked(_definition.localPath, false);
+    }
+#endif
+
     // check if the local path exists
     const auto folderOk = checkLocalPath();
 
@@ -101,15 +110,9 @@ Folder::Folder(const FolderDefinition &definition,
     connect(_accountState.data(), &AccountState::isConnectedChanged, this, &Folder::canSyncChanged);
 
 #ifdef Q_OS_WIN
-    // With virtual files a signed-out account leaves Explorer listing empty folders. Swap the
-    // folder's icons so Explorer shows the account is not connected; see SyncFolderShellStatus.
-    // Disconnected is skipped because every connection attempt passes through it on the way to
-    // Connected, and marking the folder each time would make its icon flicker.
+    // Keep Explorer's view of the folder in step with the account, see applyShellStatus().
     connect(_accountState.data(), &AccountState::stateChanged, this, [this](AccountState::State state) {
-        if (_definition.virtualFilesMode != Vfs::WindowsCfApi || state == AccountState::Disconnected) {
-            return;
-        }
-        SyncFolderShellStatus::apply(path(), navigationPaneClsid().toString(), state == AccountState::Connected);
+        applyShellStatus(state);
     });
 #endif
     connect(_engine.data(), &SyncEngine::rootEtag, this, &Folder::etagRetrievedFromSyncEngine);
@@ -175,7 +178,31 @@ Folder::Folder(const FolderDefinition &definition,
         // Initialize the vfs plugin
         startVfs();
     }
+
+#ifdef Q_OS_WIN
+    applyShellStatus(_accountState->state());
+#endif
 }
+
+#ifdef Q_OS_WIN
+void Folder::applyShellStatus(AccountState::State state)
+{
+    if (_definition.virtualFilesMode != Vfs::WindowsCfApi) {
+        return;
+    }
+
+    // Only a missing sign-in locks the folder; a server that is merely unreachable does not, as
+    // the user is still the one signed in.
+    const auto signedOut = state == AccountState::SignedOut || state == AccountState::AskingCredentials;
+    SyncFolderShellStatus::setLocked(path(), signedOut);
+
+    // Disconnected is skipped for the icon because every connection attempt passes through it on
+    // the way to Connected, and marking the folder each time would make its icon flicker.
+    if (state != AccountState::Disconnected) {
+        SyncFolderShellStatus::apply(path(), navigationPaneClsid().toString(), state == AccountState::Connected);
+    }
+}
+#endif
 
 Folder::~Folder()
 {

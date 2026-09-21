@@ -712,3 +712,29 @@ Sửa: `IfSilent cleanupDone` — chỉ gỡ tương tác (Control Panel/Setting
 Lần nâng cấp **này** vẫn chạy bộ gỡ cũ (chưa có chốt chặn) nên còn reset một lần cuối.
 
 **Chưa kiểm chứng trong app thật:** chuyển icon theo trạng thái cần đăng nhập bằng mật khẩu thật.
+
+---
+
+## Nút Log in (tài khoản authType=http) và khoá thư mục khi đăng xuất / remove account
+
+**Log in không hiện hộp thoại (lần 2):** tài khoản tạo bằng form trong app có `authType=http`
+→ `HttpCredentialsGui`, không phải `WebFlowCredentials` (bản sửa trước chỉ chạm loại sau).
+`HttpCredentialsGui::askFromUserAsync` hỏi `DetermineAuthTypeJob`, server ≥16 trả `LoginFlowV2`
+→ log "Bad http auth type" → `asked()` không hiện gì → Signed out. Sửa: `forceInAppLogin` thì
+hiện hộp thoại ngay; hộp thoại có cha + WindowModal; ẩn link "request an app password".
+
+**Khoá thư mục:** `SyncFolderShellStatus::setLocked` thêm ACE *deny FILE_LIST_DIRECTORY* cho
+SID người dùng trên đúng thư mục gốc (không kế thừa); mở khoá chỉ xoá đúng ACE đó.
+- Khoá khi `SignedOut` / `AskingCredentials`; mở khi sang trạng thái khác. Mất mạng không khoá.
+- Khoá khi Remove account. Thêm lại đúng user đó → wizard mở khoá (chỉ thư mục mang tên user
+  vừa xác thực).
+- Khởi động app: mở khoá trước `checkLocalPath()`, sau `startVfs()` áp lại theo trạng thái.
+- Bộ gỡ: `icacls /reset` trước khi xoá thư mục (tiến trình admin cũng mang SID bị chặn).
+
+**Đã kiểm chứng trên máy (UI Automation):** Log out → liệt kê thư mục **bị chặn**,
+`Desktop.ini` → `datadrive-offline.ico`. Log in → hộp thoại "Enter the DataDrive password"
+hiện trên cửa sổ Settings. Nâng cấp `/S` giữ nguyên cấu hình (chốt `IfSilent` có tác dụng).
+**Chưa kiểm chứng:** mở khoá sau khi nhập đúng mật khẩu; khoá khi Remove account.
+
+**Giới hạn cần biết:** khoá là quyền NTFS trên cùng tài khoản Windows. Người có quyền admin có
+thể tự gỡ. Nó chặn người dùng chung máy mở xem, không phải mã hoá.

@@ -29,6 +29,16 @@ public:
      */
     static void apply(const QString &folderPath, const QString &navigationPaneClsid, bool connected);
 
+    /**
+     * Stops the current Windows user from listing the folder, or lifts that again.
+     *
+     * While the account is signed out anyone at the computer could otherwise browse the folder
+     * and open whatever was downloaded into it. Denying FILE_LIST_DIRECTORY on the folder itself
+     * makes Explorer refuse to open it. Nothing below the folder is touched, and removing the
+     * lock only removes the entry this function added.
+     */
+    static void setLocked(const QString &folderPath, bool locked);
+
     /// Icon resource shown while the account is connected, in the form Explorer expects.
     [[nodiscard]] static QString connectedFolderIcon();
 

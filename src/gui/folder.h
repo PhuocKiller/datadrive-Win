@@ -7,11 +7,12 @@
 #ifndef MIRALL_FOLDER_H
 #define MIRALL_FOLDER_H
 
-#include "syncresult.h"
-#include "progressdispatcher.h"
+#include "accountstate.h"
 #include "common/syncjournaldb.h"
 #include "networkjobs.h"
+#include "progressdispatcher.h"
 #include "syncoptions.h"
+#include "syncresult.h"
 
 #include <QByteArray>
 #include <QObject>
@@ -550,6 +551,14 @@ private:
         const QString &renameTarget = QString());
 
     void startVfs();
+
+#ifdef Q_OS_WIN
+    /**
+     * Marks the folder in Explorer for the given account state: offline icon while the account is
+     * not connected, and a lock that stops the folder being browsed while it is signed out.
+     */
+    void applyShellStatus(OCC::AccountState::State state);
+#endif
 
     void correctPlaceholderFiles();
 

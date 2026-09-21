@@ -1634,6 +1634,9 @@ void FolderMan::removeFolder(Folder *folderToRemove)
     // The folder is left behind once it no longer syncs. Mark it as disconnected instead of letting
     // it look like a working sync folder, so it is clear why its contents cannot be opened.
     SyncFolderShellStatus::apply(folderToRemove->path(), {}, false);
+    // Whatever was downloaded stays in the folder, so lock it like a signed-out account's folder.
+    // Adding the same user back unlocks it again, see AccountWizardController.
+    SyncFolderShellStatus::setLocked(folderToRemove->path(), true);
 #endif
 
     unloadFolder(folderToRemove);

@@ -57,6 +57,10 @@ $syncFolders = $syncFolders | Where-Object { $_ } | ForEach-Object { $_ -replace
 foreach ($folder in $syncFolders) {
     if (-not (Test-Path -LiteralPath $folder)) { continue }
 
+    # Ứng dụng chặn quyền liệt kê thư mục khi tài khoản đăng xuất. Chặn đó áp cho SID của người
+    # dùng, mà tiến trình quản trị này cũng mang SID đó, nên phải trả quyền về mặc định trước.
+    & icacls "$folder" /reset /q *> $null
+
     # Xoá cả cây thư mục một lượt thất bại với thư mục placeholder, nên xoá từng file trước rồi
     # các thư mục từ sâu ra ngoài.
     Get-ChildItem -LiteralPath $folder -Recurse -File -Force |

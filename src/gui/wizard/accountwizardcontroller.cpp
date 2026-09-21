@@ -9,6 +9,9 @@
 #include "accountmanager.h"
 #include "clientproxy.h"
 #include "common/utility.h"
+#ifdef Q_OS_WIN
+#include "syncfoldershellstatus.h"
+#endif
 #include "common/vfs.h"
 #include "configfile.h"
 #include "creds/credentialsfactory.h"
@@ -1371,6 +1374,11 @@ void AccountWizardController::initialiseLocalSyncFolder()
             localFolder = QDir::homePath() + QLatin1Char('/') + localFolder;
         }
         localFolder = perUserLocalFolder(localFolder, _basicAuthUser);
+#ifdef Q_OS_WIN
+        // A folder left behind by a removed account is locked. This runs once the user has just
+        // authenticated, and the folder carries that user's name, so it is theirs to open again.
+        SyncFolderShellStatus::setLocked(localFolder, false);
+#endif
 #endif
     }
 
