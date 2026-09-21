@@ -1,9 +1,7 @@
 # Dọn những gì DataDrive tự ghi ra lúc chạy. Bộ gỡ cài đặt của NSIS chỉ biết xoá thứ nó
 # đã cài, nên nếu thiếu bước này thì Explorer vẫn còn mục DataDrive trỏ vào phần mềm đã biến mất.
 #
-# Về thư mục đồng bộ: file placeholder chỉ là con trỏ tới đám mây, chiếm 0 byte, và không thể
-# mở được nữa một khi phần mềm hydrat hoá chúng đã bị gỡ. Xoá chúng không đụng tới dữ liệu trên
-# server. File đã tải về thật thì giữ lại, vì đó mới là bản sao cục bộ duy nhất người dùng có.
+# Thư mục đồng bộ ứng dụng tạo ra cũng bị xoá hẳn; dữ liệu trên server không bị đụng tới.
 param([string]$InstallDir = "")
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -11,9 +9,6 @@ $ErrorActionPreference = "SilentlyContinue"
 $appName = "DataDrive"
 $configDir = Join-Path $env:APPDATA $appName
 $configFile = Join-Path $configDir "datadrive.cfg"
-
-# FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS | FILE_ATTRIBUTE_OFFLINE
-$placeholderMask = 0x400000 -bor 0x1000
 
 # 1. Gỡ đăng ký sync root. Đây mới là thứ giữ thư mục DataDrive trong khung điều hướng của
 #    Explorer: Windows lưu nó ở HKLM, không phải HKCU. Gọi API Unregister trước để Windows tự
@@ -41,49 +36,41 @@ function Stop-DataDriveSurrogates {
 }
 Stop-DataDriveSurrogates
 
-# 2. Dọn placeholder trong từng thư mục đồng bộ ghi trong cấu hình.
-#    Thư mục mặc định luôn được xét, phòng khi cấu hình đã mất từ lần gỡ dở dang trước. An toàn vì
-#    bước này chỉ xoá placeholder và sổ sách của ứng dụng, không bao giờ xoá file đã tải về.
-$syncFolders = @(Join-Path $env:USERPROFILE $appName)
+# 2. Xoá hẳn các thư mục đồng bộ ứng dụng đã tạo.
+#    Gỡ phần mềm nghĩa là thôi dùng dịch vụ trên máy này, nên thư mục đồng bộ cũng đi theo. Dữ
+#    liệu trên server không bị đụng tới: ứng dụng đã bị gỡ, không còn gì để đẩy lệnh xoá lên. Chỉ
+#    file sửa trên máy mà chưa kịp đồng bộ lúc gỡ là mất.
+#
+#    Chỉ xoá thư mục có dấu vết của ứng dụng: được ghi trong cấu hình, hoặc chứa journal
+#    .sync_*.db. Thư mục riêng của người dùng tình cờ trùng tên thì không bị đụng.
+$syncFolders = @()
 if (Test-Path $configFile) {
-    $syncFolders += Select-String -Path $configFile -Pattern '^\s*localPath\s*=\s*(.+)$' |
+    $syncFolders += Select-String -Path $configFile -Pattern '^\s*\S*localPath\s*=\s*(.+)$' |
         ForEach-Object { $_.Matches[0].Groups[1].Value.Trim().TrimEnd('/', '\') }
 }
-$syncFolders = $syncFolders | ForEach-Object { $_ -replace '/', '\' } | Sort-Object -Unique
+$syncFolders += Get-ChildItem $env:USERPROFILE -Directory -Force |
+    Where-Object { $_.Name -like "$appName*" } |
+    Where-Object { Get-ChildItem -LiteralPath $_.FullName -Force -Filter '.sync_*.db' } |
+    ForEach-Object { $_.FullName }
+$syncFolders = $syncFolders | Where-Object { $_ } | ForEach-Object { $_ -replace '/', '\' } | Sort-Object -Unique
 
-if ($syncFolders) {
-    foreach ($folder in $syncFolders) {
-        if (-not (Test-Path -LiteralPath $folder)) { continue }
+foreach ($folder in $syncFolders) {
+    if (-not (Test-Path -LiteralPath $folder)) { continue }
 
-        Get-ChildItem -LiteralPath $folder -Recurse -File -Force |
-            Where-Object { $_.Attributes -band $placeholderMask } |
-            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-
-        # Sổ sách của chính ứng dụng nằm lẫn trong thư mục người dùng: nhật ký đồng bộ, database
-        # journal, và Desktop.ini mà ứng dụng ghi ra để đặt icon thư mục. Không phải tài liệu,
-        # và vô dụng một khi ứng dụng đã bị gỡ.
-        # Lọc theo tên thay vì -Include, vì -Include bị bỏ qua khi đi cùng -LiteralPath.
-        $ownBookkeeping = @(".sync_*.db*", "._sync_*.db*", ".*sync.log", ".*permissions.log", "Desktop.ini")
-        Get-ChildItem -LiteralPath $folder -Recurse -File -Force |
-            Where-Object { $name = $_.Name; $ownBookkeeping | Where-Object { $name -like $_ } } |
-            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-
-        # Thư mục rỗng còn lại sau khi placeholder biến mất cũng không còn ý nghĩa gì.
-        # Lặp vì xoá thư mục con có thể làm thư mục cha thành rỗng theo.
-        for ($pass = 0; $pass -lt 8; $pass++) {
-            $empty = Get-ChildItem -LiteralPath $folder -Recurse -Directory -Force |
-                Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) }
-            if (-not $empty) { break }
-            $empty | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-        }
-
-        # Thư mục gốc chỉ xoá khi đã hoàn toàn trống, tức không còn file nào từng được tải về.
-        & attrib -r -s -h "$folder" 2>$null
-        if (-not (Get-ChildItem -LiteralPath $folder -Force)) {
-            Remove-Item -LiteralPath $folder -Force
-        }
-    }
+    # Xoá cả cây thư mục một lượt thất bại với thư mục placeholder, nên xoá từng file trước rồi
+    # các thư mục từ sâu ra ngoài.
+    Get-ChildItem -LiteralPath $folder -Recurse -File -Force |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    Get-ChildItem -LiteralPath $folder -Recurse -Directory -Force |
+        Sort-Object { $_.FullName.Length } -Descending |
+        ForEach-Object { & attrib -r -s -h "$($_.FullName)" 2>$null; try { [IO.Directory]::Delete($_.FullName) } catch {} }
+    & attrib -r -s -h "$folder" 2>$null
+    try { [IO.Directory]::Delete($folder) } catch {}
 }
+
+# Lối tắt tới thư mục đồng bộ mà ứng dụng thêm vào mục Links (Favorites) của Explorer.
+Get-ChildItem (Join-Path $env:USERPROFILE 'Links') -Filter "$appName*.lnk" -Force |
+    ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 
 # 3. Cấu hình, cookie, và thư mục tạm ứng dụng tạo ra mỗi lần chạy.
 Remove-Item -LiteralPath $configDir -Recurse -Force

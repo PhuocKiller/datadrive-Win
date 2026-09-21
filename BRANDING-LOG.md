@@ -663,3 +663,21 @@ chỉ placeholder và sổ sách app. Gỡ đăng ký sync root `...tranhuyphuoc
 `DataDrive8` đã không còn.
 
 **Chưa kiểm chứng:** hai luồng này cần đăng nhập thật; chưa có test tự động cho chúng.
+
+---
+
+## Gỡ cài đặt xoá hẳn thư mục đồng bộ
+
+Yêu cầu: dùng lại thư mục chỉ khi Log out/Log in hoặc Remove/Add account. Gỡ cài đặt thì thư
+mục đồng bộ app tạo ra phải bị xoá hẳn (dữ liệu trên server giữ nguyên).
+
+Trước đây script chỉ xoá placeholder + sổ sách và giữ file đã tải về. Nay xoá toàn bộ thư mục.
+Phạm vi: thư mục ghi trong `datadrive.cfg` (`localPath`) hoặc thư mục `DataDrive*` trong hồ sơ
+người dùng **có chứa journal `.sync_*.db`**. Điều kiện journal ngăn xoá nhầm thư mục riêng trùng
+tên — chạy thử liệt kê: chọn `DataDrive9`, `DataDrive10`; bỏ qua `datadrive-win-build`,
+`datadrive-android`. Xoá thêm lối tắt `DataDrive*.lnk` trong `%USERPROFILE%\Links`.
+
+Rủi ro chấp nhận theo yêu cầu: file sửa trên máy chưa kịp đồng bộ lúc gỡ sẽ mất. Server không bị
+ảnh hưởng vì app đã gỡ, sync root đã huỷ đăng ký trước khi xoá.
+
+Chưa chạy thật trên thư mục đang dùng (app đang chạy với DataDrive9/10).
