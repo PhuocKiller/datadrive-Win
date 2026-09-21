@@ -528,3 +528,59 @@ nhưng qua SmartScreen ngay lập tức, OV phải tích luỹ uy tín dần). S
 hoặc đặt `CRAFT_CODESIGN_CERTIFICATE` trong craftmaster.ini.
 
 Đây là việc cần tiền và giấy tờ doanh nghiệp, không phải việc kỹ thuật tôi tự làm được.
+
+---
+
+## Icon khay hệ thống — và một cái bẫy im lặng
+
+### Icon khay là icon *trạng thái*, không phải logo
+
+`Theme::syncStateIcon()` chọn file theo trạng thái đồng bộ. Trong 16 pixel, người dùng cần
+biết *đang đồng bộ hay đã xong*, nên vẽ logo suông là không đủ. Bản gốc dùng đĩa tròn xanh
+Nextcloud kèm ký hiệu; bản này dùng chữ DD kèm huy hiệu ở góc.
+
+Chỉ 2/6 file bộ màu dính màu thương hiệu cũ (`state-ok`, `state-sync` với gradient
+`#0082C9 → #1CAFFF`). Bốn file còn lại dùng đỏ/vàng/xám — đó là màu **ngữ nghĩa trạng thái**,
+giữ nguyên vì người dùng đã quen.
+
+Bộ mono `theme/black/` và `theme/white/` hoá ra **không hề mang thương hiệu Nextcloud** — chỉ
+là glyph chung (dấu kiểm, dấu nhân, hai vạch). Tôi từng nói ngược lại, đó là nhận định sai.
+Việc làm lại chúng không phải sửa rò rỉ mà là *thêm nhận diện* DataDrive.
+
+Cả 3 bộ (20 file SVG) sinh bằng `packaging/craft/make-state-icons.py`. Đổi logo hay bảng màu
+thì chạy lại script, không vẽ tay.
+
+### BẪY: đổi SVG không có tác dụng nếu PNG cũ còn tồn tại
+
+`cmake/modules/GenerateIconsUtils.cmake:40`
+
+```cmake
+if (EXISTS "${icon_name_dir}/${output_icon_full_name_wle}.png")
+  return()
+endif()
+```
+
+Hàm sinh PNG **bỏ qua khi PNG đã tồn tại**, không so ngày với SVG nguồn. Upstream làm vậy vì
+họ commit sẵn PNG vào repo. Ở đây PNG là rác từ build trước, nên mọi thay đổi SVG bị nuốt im
+lặng — build vẫn chạy, vẫn đóng gói thành công, chỉ là icon cũ.
+
+Phát hiện bằng cách so ngày: PNG ghi `2026-09-20 15:49`, SVG ghi `2026-09-21 07:27`.
+
+**Quy tắc bắt buộc:** đổi bất kỳ SVG nào trong `theme/` thì phải xoá PNG tương ứng trước khi
+build. 200 file PNG trạng thái không nằm trong git, xoá thoải mái.
+
+```bash
+find theme/colored theme/black theme/white -name "state-*-*.png" -delete
+```
+
+### Lỗi rò rỉ thương hiệu bắt thêm được
+
+`src/gui/folder.cpp:1773` hardcode `.nextcloudsync.log` và `.nextcloudpermissions.log`. Hai file
+này ứng dụng tạo **ngay trong thư mục đồng bộ của người dùng**, tức người dùng nhìn thấy. Đã
+đổi sang lấy tên từ `Theme::appName()`.
+
+### Ba GUID CfAPI còn sót
+
+`CMakeLists.txt:38,41,45` giữ nguyên GUID của Nextcloud cho AppID, Custom State Handler và
+Thumbnail Handler. Lần trước tôi chỉ soi khối `WIN_SHELLEXT` trong `NEXTCLOUD.cmake` nên bỏ sót.
+Dùng chung CLSID nghĩa là cài cả hai sản phẩm trên một máy sẽ đè lên nhau. Đã sinh mới cả ba.

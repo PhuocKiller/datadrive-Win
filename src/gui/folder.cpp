@@ -1770,8 +1770,11 @@ void Folder::registerFolderWatcher()
     }
     connect(_folderWatcher.data(), &FolderWatcher::filesLockImposed, this, &Folder::slotFilesLockImposed, Qt::UniqueConnection);
     _folderWatcher->init(path());
-    _folderWatcher->startNotificatonTest(path() + QLatin1String(".nextcloudsync.log"));
-    _folderWatcher->performSetPermissionsTest(path() + QLatin1String(".nextcloudpermissions.log"));
+    // These probe files are created inside the user's own sync folder, so they carry the name of
+    // this build rather than the upstream one.
+    const auto probePrefix = path() + QLatin1Char('.') + Theme::instance()->appName().toLower();
+    _folderWatcher->startNotificatonTest(probePrefix + QLatin1String("sync.log"));
+    _folderWatcher->performSetPermissionsTest(probePrefix + QLatin1String("permissions.log"));
     connect(_engine.data(), &SyncEngine::lockFileDetected, _folderWatcher.data(), &FolderWatcher::slotLockFileDetectedExternally);
 }
 

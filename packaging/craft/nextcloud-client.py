@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
 
 import os
+from pathlib import Path
 
 import info
 from Package.CMakePackageBase import *
@@ -122,13 +123,50 @@ class Package(CMakePackageBase):
         # one instead of leaving people to hunt for the app.
         self.defines["registry_hook"] = f'CreateShortCut "$DESKTOP\\DataDrive.lnk" "{appExecutable}"'
 
-        # The uninstaller clears the Start menu folder on its own but knows nothing about the
-        # desktop, so it would otherwise leave a shortcut to a file that is gone.
-        self.defines["un_sections"] = "\n".join([
+        # Everything the running app leaves behind that the stock uninstaller never touches.
+        #
+        # The uninstaller clears the Start menu folder and the files it installed, and nothing
+        # else. The app registers its shell extensions and its Explorer entry under HKCU while
+        # it runs, and writes its configuration and its password into the user profile, so
+        # uninstalling without this leaves a DataDrive entry sitting in Explorer pointing at
+        # software that is gone.
+        #
+        # The synchronised folder itself is deliberately left alone: those are the user's own
+        # documents, and no uninstaller should delete documents.
+        # The Explorer entry uses a CLSID that folder.cpp draws from QUuid::createUuid() per sync
+        # folder, so no fixed list can cover it. The cleanup sweeps HKCU for keys the app named
+        # after itself instead, and clears its saved password the same way.
+        #
+        # The uninstaller writes the script to a temporary file and runs it from there. Passing it
+        # inline is not an option: an NSIS string holds 1024 characters, and the script is longer
+        # than that however it is encoded. Installing it alongside the program would not work
+        # either, because the section that deletes the program files runs before this one.
+        cleanupLines = (Path(__file__).parent / "uninstall-cleanup.ps1").read_text(encoding="utf-8").splitlines()
+
+        def toNsisString(line: str) -> str:
+            return line.replace("$", "$$").replace('"', '$\\"').replace("`", "$\\`")
+
+        unSections = [
             "Section un.DesktopShortcut",
             '  Delete "$DESKTOP\\DataDrive.lnk"',
             "SectionEnd",
-        ])
+            "",
+            "Section un.UserState",
+            '  StrCpy $1 "$TEMP\\datadrive-uninstall-cleanup.ps1"',
+            '  FileOpen $0 "$1" w',
+            "  IfErrors cleanupDone",
+        ]
+        for line in cleanupLines:
+            unSections.append(f'  FileWrite $0 "{toNsisString(line)}$\\r$\\n"')
+        unSections += [
+            "  FileClose $0",
+            '  nsExec::ExecToLog \'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$1"\'',
+            "  Pop $2",
+            '  Delete "$1"',
+            "  cleanupDone:",
+            "SectionEnd",
+        ]
+        self.defines["un_sections"] = "\n".join(unSections)
 
         self.ignoredPackages += ["binary/mysql"]
         if not CraftCore.compiler.isLinux:
