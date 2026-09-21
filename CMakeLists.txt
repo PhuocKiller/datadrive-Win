@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+﻿# SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
 # SPDX-FileCopyrightText: 2011 ownCloud GmbH
 # SPDX-License-Identifier: GPL-2.0-or-later
 cmake_minimum_required(VERSION 3.16)
@@ -35,14 +35,14 @@ set(REQUIRED_QT_VERSION "6.10.0")
 # CfAPI Shell Extensions
 set( CFAPI_SHELL_EXTENSIONS_LIB_NAME CfApiShellExtensions )
     
-set( CFAPI_SHELLEXT_APPID_REG "{E314A650-DCA4-416E-974E-18EA37C213EA}")
+set( CFAPI_SHELLEXT_APPID_REG "{D07D1093-6178-4697-B083-26BC1296E450}")
 set( CFAPI_SHELLEXT_APPID_DISPLAY_NAME "${APPLICATION_NAME} CfApi Shell Extensions" )
 
-set( CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID "1E62D59A-6EA4-476C-B707-4A32E88ED822" )
+set( CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID "2E392637-DC1E-44A6-ABCA-278A6F64B3CB" )
 set( CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID_REG "{${CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID}}" )
 set( CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_DISPLAY_NAME "${APPLICATION_NAME} Custom State Handler" )
 
-set( CFAPI_SHELLEXT_THUMBNAIL_HANDLER_CLASS_ID "6FF9B5B6-389F-444A-9FDD-A286C36EA079" )
+set( CFAPI_SHELLEXT_THUMBNAIL_HANDLER_CLASS_ID "3A421342-21CA-4CEA-99B7-FE608A6901EF" )
 set( CFAPI_SHELLEXT_THUMBNAIL_HANDLER_CLASS_ID_REG "{${CFAPI_SHELLEXT_THUMBNAIL_HANDLER_CLASS_ID}}" )
 set( CFAPI_SHELLEXT_THUMBNAIL_HANDLER_DISPLAY_NAME "${APPLICATION_NAME} Thumbnail Handler" )
 
@@ -290,7 +290,7 @@ add_definitions( -DNOMINMAX )
 # Target Windows 10 or later, matching the documented supported runtime
 # (see README). NTDDI_VERSION is already on Windows 10 2004 (19041), so
 # the previous Windows 7 values for WINVER / _WIN32_WINNT were merely
-# stale — bringing them in line unlocks Win8+ APIs like XAudio2.
+# stale â€” bringing them in line unlocks Win8+ APIs like XAudio2.
 add_definitions(-D_WIN32_WINNT=0x0A00)
 add_definitions(-DWINVER=0x0A00)
 add_definitions(-DNTDDI_VERSION=0x0A000004)

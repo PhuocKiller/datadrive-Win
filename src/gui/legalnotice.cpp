@@ -44,8 +44,17 @@ void LegalNotice::changeEvent(QEvent *e)
 
 void LegalNotice::customizeStyle()
 {
+    // The upstream copyright lines stay as they are: the GPL keeps them in every derived work,
+    // and the modification notice below is what section 2(a) asks a modified version to carry.
     QString notice = tr("<p>Copyright 2017-2026 Nextcloud GmbH<br />"
                         "Copyright 2012-2023 ownCloud GmbH</p>");
+
+    //: %1 is the name of this build, for example "DataDrive". The sentence tells the user that
+    //: this is a modified version of the upstream Nextcloud desktop client, which the GPL
+    //: requires a derived work to state.
+    notice += tr("<p>%1 is a modified version of the Nextcloud desktop client, "
+                 "distributed by its own publisher and not by Nextcloud GmbH.</p>")
+                  .arg(Theme::instance()->appNameGUI());
 
     notice += tr("<p>Licensed under the GNU General Public License (GPL) Version 2.0 or any later version.</p>");
 

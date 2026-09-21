@@ -133,6 +133,14 @@ void AccountWizardController::initialiseAccount()
     const auto hasForcedConcreteServerUrl =
         Theme::instance()->forceOverrideServerUrl() && !defaultUrl.isEmpty() && !Theme::instance()->multipleOverrideServers();
     setServerUrlEditable(!hasForcedConcreteServerUrl && !overrideServerSelectionRequired());
+
+    // A build that pins the server and collects the credentials itself never shows the server
+    // page. Opening on it anyway makes it flash past once the window calls submitServerUrl(), so
+    // the wizard starts on the credentials page anyway and the server check runs behind it.
+    _opensOnLoginPage = startLoginFlowAutomatically() && Theme::instance()->forceInAppLogin();
+    if (_opensOnLoginPage) {
+        _currentStep = BasicAuthStep;
+    }
 }
 
 void AccountWizardController::initialiseOverrideServerChoices()
@@ -850,7 +858,7 @@ void AccountWizardController::slotFoundServer(const QUrl &url, const QJsonObject
     }
 
     setServerDisplayName(url.host());
-    setAuthStatusText(tr("Preparing browser login") + QStringLiteral("…"));
+    setAuthStatusText((Theme::instance()->forceInAppLogin() ? tr("Preparing login") : tr("Preparing browser login")) + QStringLiteral("…"));
 
     if (_account->isPublicShareLink()) {
         setPublicShareSetup(true);
@@ -896,6 +904,17 @@ void AccountWizardController::slotNoServerFoundTimeout(const QUrl &url)
 
 void AccountWizardController::slotDetermineAuthType()
 {
+    // A build that asks for credentials itself has no use for the answer: DetermineAuthTypeJob
+    // reports LoginFlowV2 for every server from version 16 on, which is exactly the browser flow
+    // this build replaces. Skipping the job also spares the two extra requests it makes.
+    if (Theme::instance()->forceInAppLogin()) {
+        setBusy(false);
+        setAuthStatusText({});
+        setErrorText({});
+        setCurrentStep(BasicAuthStep);
+        return;
+    }
+
     auto *job = new DetermineAuthTypeJob(_account, this);
     connect(job, &DetermineAuthTypeJob::authType, this, [this](DetermineAuthTypeJob::AuthType type) {
         switch (type) {
@@ -954,6 +973,21 @@ void AccountWizardController::openSignup()
 void AccountWizardController::openSelfHostedServerGuide()
 {
     Utility::openBrowser(QUrl(QStringLiteral("https://docs.nextcloud.com/server/latest/admin_manual/installation/#installation")));
+}
+
+bool AccountWizardController::hasHomepageUrl() const
+{
+    return !Theme::instance()->homepageUrl().isEmpty();
+}
+
+void AccountWizardController::openHomepage()
+{
+    const auto homepage = QUrl(Theme::instance()->homepageUrl());
+    if (!homepage.isValid()) {
+        return;
+    }
+
+    Utility::openBrowser(homepage);
 }
 
 void AccountWizardController::openProxySettings()
@@ -1206,8 +1240,23 @@ void AccountWizardController::cancel()
     Q_EMIT finished(QDialog::Rejected);
 }
 
+bool AccountWizardController::canGoBack() const
+{
+    // The credentials page is the first page of a build that pins the server, so there is nothing
+    // behind it to return to.
+    if (_opensOnLoginPage && (_currentStep == BasicAuthStep || _currentStep == BrowserAuthStep)) {
+        return false;
+    }
+
+    return _currentStep == BrowserAuthStep || _currentStep == BasicAuthStep || _currentStep == SyncOptionsStep;
+}
+
 void AccountWizardController::goBack()
 {
+    if (!canGoBack()) {
+        return;
+    }
+
     setErrorText({});
     if (_currentStep == BrowserAuthStep || _currentStep == BasicAuthStep || _currentStep == SyncOptionsStep) {
         discardFlow2Auth();

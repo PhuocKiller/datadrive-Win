@@ -235,6 +235,7 @@ WizardStyledWindow {
                 visible: root.controller
                     && root.controller.currentStep !== AccountWizardController.ServerStep
                     && root.controller.currentStep !== AccountWizardController.BrowserAuthStep
+                    && root.controller.canGoBack
                 enabled: root.controller && !root.controller.busy
                 Layout.fillWidth: root.controller
                     && (root.controller.currentStep === AccountWizardController.BasicAuthStep
@@ -374,6 +375,18 @@ WizardStyledWindow {
                         root.controller.submitServerUrl()
                     }
                 }
+            },
+
+            WizardButton {
+                visible: root.controller
+                    && root.controller.currentStep === AccountWizardController.BasicAuthStep
+                    && root.controller.hasHomepageUrl
+                enabled: root.controller && !root.controller.busy
+                text: qsTr("Home page")
+                textSuffix: "↗"
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                onClicked: root.controller.openHomepage()
             }
         ]
     }

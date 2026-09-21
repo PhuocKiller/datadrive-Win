@@ -463,6 +463,30 @@ Theme::Theme()
 #endif
 #ifdef APPLICATION_SERVER_URL
     setOverrideServerUrl(QString::fromUtf8(APPLICATION_SERVER_URL));
+    // A build that both ships a server address and forbids changing it has nothing to ask on the
+    // server page, so the wizard goes straight to the login step. AccountWizardController checks
+    // the remaining preconditions, such as the address actually being set.
+    if (_forceOverrideServerUrl) {
+        _startLoginFlowAutomatically = true;
+    }
+#endif
+}
+
+bool Theme::forceInAppLogin() const
+{
+#if APPLICATION_FORCE_IN_APP_LOGIN
+    return true;
+#else
+    return false;
+#endif
+}
+
+QString Theme::homepageUrl() const
+{
+#ifdef APPLICATION_HOMEPAGE_URL
+    return QString::fromUtf8(APPLICATION_HOMEPAGE_URL);
+#else
+    return {};
 #endif
 }
 
@@ -607,7 +631,13 @@ bool Theme::monoIconsAvailable() const
 
 QString Theme::updateCheckUrl() const
 {
-    return APPLICATION_UPDATE_URL;
+    // cmakedefine leaves the macro undefined when APPLICATION_UPDATE_URL is empty, which is how a
+    // build says it ships no update server. An empty address is the honest answer for it.
+#ifdef APPLICATION_UPDATE_URL
+    return QStringLiteral(APPLICATION_UPDATE_URL);
+#else
+    return {};
+#endif
 }
 
 qint64 Theme::newBigFolderSizeLimit() const

@@ -38,8 +38,40 @@ public:
         controller._account = Account::create();
         controller._account->setUrl(url);
     }
+
+    static void determineAuthType(AccountWizardController &controller)
+    {
+        controller.slotDetermineAuthType();
+    }
+
+    static void setCurrentStep(AccountWizardController &controller, AccountWizardController::Step step)
+    {
+        controller.setCurrentStep(step);
+    }
 };
 
+}
+
+/**
+ * Puts the theme back into the state of a build that lets the user pick a server.
+ *
+ * A build that pins the server never shows the server page, so the wizard opens on the
+ * credentials page instead. Tests that exercise the server page need the other configuration,
+ * and restore the theme when the returned guard goes out of scope.
+ */
+[[nodiscard]] static auto useSelectableServer()
+{
+    const auto theme = Theme::instance();
+    const auto previousForceOverrideServerUrl = theme->forceOverrideServerUrl();
+    const auto previousStartLoginFlowAutomatically = theme->startLoginFlowAutomatically();
+
+    theme->setForceOverrideServerUrl(false);
+    theme->setStartLoginFlowAutomatically(false);
+
+    return qScopeGuard([theme, previousForceOverrideServerUrl, previousStartLoginFlowAutomatically] {
+        theme->setForceOverrideServerUrl(previousForceOverrideServerUrl);
+        theme->setStartLoginFlowAutomatically(previousStartLoginFlowAutomatically);
+    });
 }
 
 class TestAccountWizardController : public QObject
@@ -123,6 +155,8 @@ private Q_SLOTS:
     {
         QFETCH(QString, serverUrl);
 
+        const auto restoreTheme = useSelectableServer();
+
         AccountWizardController controller;
         QSignalSpy errorSpy(&controller, &AccountWizardController::errorTextChanged);
 
@@ -147,6 +181,8 @@ private Q_SLOTS:
 
     void rejectsIncompleteManualProxyBeforeServerCheck()
     {
+        const auto restoreTheme = useSelectableServer();
+
         AccountWizardController controller;
         QSignalSpy errorSpy(&controller, &AccountWizardController::errorTextChanged);
 
@@ -353,6 +389,98 @@ private Q_SLOTS:
         QCOMPARE(controller.serverUrl(), QStringLiteral("https://cloud.example"));
         QVERIFY(!controller.serverUrlEditable());
         QVERIFY(controller.startLoginFlowAutomatically());
+    }
+
+    void inAppLoginBuildAsksForCredentialsInsteadOfOpeningTheBrowser()
+    {
+        if (!Theme::instance()->forceInAppLogin()) {
+            QSKIP("Build uses the browser login flow.");
+        }
+
+        AccountWizardController controller;
+        AccountWizardControllerTestAccess::setCurrentStep(controller, AccountWizardController::ServerStep);
+
+        QSignalSpy stepSpy(&controller, &AccountWizardController::currentStepChanged);
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QCOMPARE(stepSpy.count(), 1);
+        // Nothing is in flight, so the page must be ready for typing rather than showing a spinner.
+        QVERIFY(!controller.busy());
+        QVERIFY(controller.errorText().isEmpty());
+        QVERIFY(controller.authStatusText().isEmpty());
+    }
+
+    void inAppLoginBuildNeverLandsOnTheBrowserStep()
+    {
+        if (!Theme::instance()->forceInAppLogin()) {
+            QSKIP("Build uses the browser login flow.");
+        }
+
+        AccountWizardController controller;
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+
+        QVERIFY(controller.currentStep() != AccountWizardController::BrowserAuthStep);
+
+        // Running the step again must not bounce the user out of the credentials page.
+        AccountWizardControllerTestAccess::determineAuthType(controller);
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+    }
+
+    void inAppLoginBuildOpensOnTheCredentialsPage()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->forceInAppLogin() || !theme->startLoginFlowAutomatically()) {
+            QSKIP("Build does not open straight on the credentials page.");
+        }
+
+        AccountWizardController controller;
+
+        // Starting on the server page would make it flash past once the window submits the
+        // pinned address, which is what this build is meant to avoid.
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QVERIFY(controller.startLoginFlowAutomatically());
+    }
+
+    void thereIsNoWayBackFromTheFirstPage()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->forceInAppLogin() || !theme->startLoginFlowAutomatically()) {
+            QSKIP("Build does not open straight on the credentials page.");
+        }
+
+        AccountWizardController controller;
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+        QVERIFY(!controller.canGoBack());
+
+        // Even if something invokes it anyway, the user must not be stranded on the server page
+        // that this build never shows.
+        controller.goBack();
+        QCOMPARE(controller.currentStep(), AccountWizardController::BasicAuthStep);
+
+        // The sync options page comes after a successful login, so that one can still go back.
+        AccountWizardControllerTestAccess::setCurrentStep(controller, AccountWizardController::SyncOptionsStep);
+        QVERIFY(controller.canGoBack());
+    }
+
+    void homepageButtonIsOfferedOnlyWhenTheBuildDefinesTheUrl()
+    {
+        AccountWizardController controller;
+
+        QCOMPARE(controller.hasHomepageUrl(), !Theme::instance()->homepageUrl().isEmpty());
+    }
+
+    void openingTheHomepageWithoutAUrlIsHarmless()
+    {
+        const auto theme = Theme::instance();
+        if (!theme->homepageUrl().isEmpty()) {
+            QSKIP("Build defines a homepage URL, so nothing is skipped here.");
+        }
+
+        AccountWizardController controller;
+        QVERIFY(!controller.hasHomepageUrl());
+        // Must not reach the browser, and must not crash on the empty URL.
+        controller.openHomepage();
     }
 
 #ifdef Q_OS_LINUX
