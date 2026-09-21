@@ -12,7 +12,11 @@ Chạy lại sau khi đổi logo hoặc bảng màu:
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-OUT_DIR = REPO / "theme" / "colored" / "nextcloud"
+
+# src/gui/CMakeLists.txt:16 chi tro theme.qrc vao thu muc con "nextcloud/" khi APPLICATION_NAME
+# van la cua ban goc. Ban da doi thuong hieu doc icon thang tu theme/colored/, nen icon
+# DataDrive phai nam o day chu khong phai trong thu muc con.
+OUT_DIR = REPO / "theme" / "colored"
 
 # Bảng màu lấy từ Logo/Logo/datadrive-icon-simple.svg
 BRAND_LIGHT = "#2DD4FF"
