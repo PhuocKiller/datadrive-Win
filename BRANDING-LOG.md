@@ -681,3 +681,34 @@ Rủi ro chấp nhận theo yêu cầu: file sửa trên máy chưa kịp đồn
 ảnh hưởng vì app đã gỡ, sync root đã huỷ đăng ký trước khi xoá.
 
 Chưa chạy thật trên thư mục đang dùng (app đang chạy với DataDrive9/10).
+
+---
+
+## Log in không hiện hộp thoại; Explorer không báo mất kết nối; nâng cấp làm mất tài khoản
+
+**Log in → Connecting → Signed out:** tái hiện bằng UI Automation (Log out rồi Log in): luồng đi
+đúng tới `Asking Credentials` và hộp thoại mật khẩu có hiện. Nguyên nhân khả dĩ trên máy người
+dùng: hộp thoại không có cửa sổ cha bị Qt đẩy xuống dưới cửa sổ Settings; trong lúc chờ, nút
+đổi thành "Log out" nên click lần nữa → Signed out. Sửa: cha là `QApplication::activeWindow()`,
+`Qt::WindowModal` (chặn luôn nút Log out phía sau), và nếu cửa sổ cha đóng làm hộp thoại bị huỷ
+mà không `finished()` thì coi như Cancel để tài khoản không kẹt ở Asking Credentials.
+
+**Explorer không báo mất kết nối:** khi đăng xuất, thư mục placeholder không lấy được danh sách
+nên hiện trống. Thêm `SyncFolderShellStatus` (`src/gui/syncfoldershellstatus.*`, chỉ Windows):
+- Tài khoản không kết nối (mọi trạng thái trừ `Connected`, bỏ qua `Disconnected` vì là trạng
+  thái trung gian mỗi lần kết nối) → đổi `DefaultIcon` của CLSID mục điều hướng và
+  `IconResource` trong `Desktop.ini` của thư mục sang `datadrive-offline.ico`.
+- Kết nối lại → trả icon DD.
+- Remove account → thư mục ở lại được đánh dấu offline thay vì mất icon.
+- `Desktop.ini` mã UTF-16 (người dùng tự đặt icon qua Explorer) thì không đụng.
+- Đã thử tay: đổi `DefaultIcon` sang icon lỗi → Explorer hiện X đỏ ở mục DataDrive.
+- `theme/colored/DataDrive-offline.ico` sinh bằng `packaging/craft/make-offline-icon.py`
+  (logo nhạt + X đỏ), cài vào `bin/datadrive-offline.ico`. Windows Shell đọc đúng.
+- Không sửa `src/common/`: viết riêng trong `src/gui/`.
+
+**Nâng cấp làm mất tài khoản:** template NSIS (dòng 153) luôn chạy bộ gỡ bản cũ với `/S` trước
+khi cài. Bộ gỡ đang xoá cấu hình, mật khẩu, thư mục đồng bộ → mỗi lần cài bản mới là reset.
+Sửa: `IfSilent cleanupDone` — chỉ gỡ tương tác (Control Panel/Settings) mới dọn dữ liệu.
+Lần nâng cấp **này** vẫn chạy bộ gỡ cũ (chưa có chốt chặn) nên còn reset một lần cuối.
+
+**Chưa kiểm chứng trong app thật:** chuyển icon theo trạng thái cần đăng nhập bằng mật khẩu thật.

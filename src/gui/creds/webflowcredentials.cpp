@@ -15,11 +15,14 @@
 #include "theme.h"
 #include "wizard/browserreauthwindow.h"
 
+#include <QApplication>
 #include <QAuthenticator>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QPointer>
 #include <QTimer>
+
+#include <memory>
 
 using namespace QKeychain;
 
@@ -190,14 +193,29 @@ void WebFlowCredentials::askForPasswordInApp()
         message += QStringLiteral("<br><br><b>") + tr("The password was not accepted. Please try again.") + QStringLiteral("</b>");
     }
 
-    _passwordDialog = new QInputDialog();
+    // Parent-less dialogs tend to open underneath the settings window the user just clicked in,
+    // where they go unnoticed while the account sits waiting for a password. Owning the prompt
+    // from the active window keeps it on top of it.
+    _passwordDialog = new QInputDialog(QApplication::activeWindow());
     _passwordDialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    _passwordDialog->setWindowModality(Qt::WindowModal);
     _passwordDialog->setWindowTitle(tr("Log in"));
     _passwordDialog->setLabelText(message);
     _passwordDialog->setTextEchoMode(QLineEdit::Password);
     _passwordDialog->setOkButtonText(tr("Log in"));
 
-    connect(_passwordDialog, &QDialog::finished, this, [this](int result) {
+    // A parent window closing takes the prompt with it without emitting finished(). The account
+    // would then wait for an answer forever, so treat that as the user cancelling.
+    const auto answered = std::make_shared<bool>(false);
+    connect(_passwordDialog, &QObject::destroyed, this, [this, answered] {
+        if (!*answered) {
+            _passwordDialog = nullptr;
+            Q_EMIT asked();
+        }
+    });
+
+    connect(_passwordDialog, &QDialog::finished, this, [this, answered](int result) {
+        *answered = true;
         const auto dialog = _passwordDialog;
         _passwordDialog = nullptr;
         if (result == QDialog::Accepted && dialog && !dialog->textValue().isEmpty()) {

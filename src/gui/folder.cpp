@@ -29,6 +29,9 @@
 #include "creds/abstractcredentials.h"
 #include "settingsdialog.h"
 #include "vfsdownloaderrordialog.h"
+#ifdef Q_OS_WIN
+#include "syncfoldershellstatus.h"
+#endif
 
 #ifdef Q_OS_MACOS
 #include "common/utility_mac_sandbox.h"
@@ -96,6 +99,19 @@ Folder::Folder(const FolderDefinition &definition,
             });
 
     connect(_accountState.data(), &AccountState::isConnectedChanged, this, &Folder::canSyncChanged);
+
+#ifdef Q_OS_WIN
+    // With virtual files a signed-out account leaves Explorer listing empty folders. Swap the
+    // folder's icons so Explorer shows the account is not connected; see SyncFolderShellStatus.
+    // Disconnected is skipped because every connection attempt passes through it on the way to
+    // Connected, and marking the folder each time would make its icon flicker.
+    connect(_accountState.data(), &AccountState::stateChanged, this, [this](AccountState::State state) {
+        if (_definition.virtualFilesMode != Vfs::WindowsCfApi || state == AccountState::Disconnected) {
+            return;
+        }
+        SyncFolderShellStatus::apply(path(), navigationPaneClsid().toString(), state == AccountState::Connected);
+    });
+#endif
     connect(_engine.data(), &SyncEngine::rootEtag, this, &Folder::etagRetrievedFromSyncEngine);
     connect(_engine.data(), &SyncEngine::rootFileIdReceived, this, &Folder::rootFileIdReceivedFromSyncEngine);
 

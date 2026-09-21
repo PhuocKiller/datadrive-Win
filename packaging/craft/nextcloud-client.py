@@ -172,6 +172,11 @@ class Package(CMakePackageBase):
             "SectionEnd",
             "",
             "Section un.UserState",
+            # Every install first runs the previous version's uninstaller with /S before it
+            # copies the new files. Wiping the configuration, password and sync folders there
+            # would reset the user's accounts on each upgrade, so only an uninstall the user
+            # goes through themselves, from Settings or Control Panel, clears them.
+            "  IfSilent cleanupDone",
             '  StrCpy $1 "$TEMP\\datadrive-uninstall-cleanup.ps1"',
             # The error flag is sticky in NSIS. The main uninstall section sets it whenever a
             # locked shell extension DLL refuses to go, and without clearing it here IfErrors

@@ -23,6 +23,10 @@
 #include "updatee2eefolderusersmetadatajob.h"
 #include "settings/migration.h"
 
+#ifdef Q_OS_WIN
+#include "syncfoldershellstatus.h"
+#endif
+
 #ifdef Q_OS_MACOS
 #include <CoreServices/CoreServices.h>
 #include "common/utility_mac_sandbox.h"
@@ -1626,6 +1630,11 @@ void FolderMan::removeFolder(Folder *folderToRemove)
 
     // remove Desktop.ini
     Utility::removeFavLink(folderToRemove->path());
+#ifdef Q_OS_WIN
+    // The folder is left behind once it no longer syncs. Mark it as disconnected instead of letting
+    // it look like a working sync folder, so it is clear why its contents cannot be opened.
+    SyncFolderShellStatus::apply(folderToRemove->path(), {}, false);
+#endif
 
     unloadFolder(folderToRemove);
     if (currentlyRunning) {
