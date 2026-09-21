@@ -6,11 +6,12 @@
 #ifndef WEBFLOWCREDENTIALS_H
 #define WEBFLOWCREDENTIALS_H
 
+#include <QInputDialog>
+#include <QNetworkRequest>
+#include <QPointer>
+#include <QQueue>
 #include <QSslCertificate>
 #include <QSslKey>
-#include <QNetworkRequest>
-#include <QQueue>
-#include <QPointer>
 
 #include "creds/abstractcredentials.h"
 
@@ -69,6 +70,11 @@ private Q_SLOTS:
     void slotAskFromUserCredentialsProvided(const QString &user, const QString &pass);
     void slotAskFromUserCancelled();
 
+private:
+    void askForPasswordInApp();
+
+private Q_SLOTS:
+
     void slotReadClientCertPEMJobDone(OCC::KeychainChunk::ReadJob *readJob);
     void slotReadClientKeyPEMJobDone(OCC::KeychainChunk::ReadJob *readJob);
     void slotReadClientCaCertsPEMJobDone(OCC::KeychainChunk::ReadJob *readJob);
@@ -126,6 +132,7 @@ protected:
     QString _appName;
 
     QPointer<BrowserReAuthWindow> _reAuthWindow;
+    QPointer<QInputDialog> _passwordDialog;
 };
 
 } // namespace OCC

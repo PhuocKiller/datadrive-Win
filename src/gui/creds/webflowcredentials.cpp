@@ -5,14 +5,15 @@
 
 #include "webflowcredentials.h"
 
-#include "creds/httpcredentials.h"
-#include "creds/keychainchunk.h"
 #include "accessmanager.h"
 #include "account.h"
+#include "common/utility.h"
 #include "configfile.h"
+#include "creds/httpcredentials.h"
+#include "creds/keychainchunk.h"
+#include "networkjobs.h"
 #include "theme.h"
 #include "wizard/browserreauthwindow.h"
-#include "networkjobs.h"
 
 #include <QAuthenticator>
 #include <QNetworkAccessManager>
@@ -142,6 +143,14 @@ void WebFlowCredentials::fetchFromKeychain(const QString &appName) {
 }
 
 void WebFlowCredentials::askFromUser() {
+    // A build that collects credentials in the client has no browser login to fall back on, so
+    // signing back in after a logout would open a flow the build never offers. Ask for the
+    // password of the account instead; the user name and server stay as they are.
+    if (Theme::instance()->forceInAppLogin()) {
+        askForPasswordInApp();
+        return;
+    }
+
     if (_reAuthWindow) {
         _reAuthWindow->show();
         return;
@@ -159,6 +168,53 @@ void WebFlowCredentials::askFromUser() {
     _reAuthWindow->show();
 
     qCDebug(lcWebFlowCredentials()) << "User needs to reauth!";
+}
+
+void WebFlowCredentials::askForPasswordInApp()
+{
+    if (_passwordDialog) {
+        _passwordDialog->raise();
+        _passwordDialog->activateWindow();
+        return;
+    }
+
+    // Logging out forgets the password, so one still being held here means the server has just
+    // turned it down and this is a second attempt.
+    const auto previousAttemptRejected = !_password.isEmpty();
+
+    //: %1 is the application name, e.g. "DataDrive"; %2 is the user name; %3 is the server
+    //: address, e.g. "https://storage.datadrive.vn".
+    auto message = tr("Enter the %1 password for this account.<br><br>User name: %2<br>Server: %3")
+                       .arg(Utility::escape(Theme::instance()->appNameGUI()), Utility::escape(_user), Utility::escape(_account->url().toDisplayString()));
+    if (previousAttemptRejected) {
+        message += QStringLiteral("<br><br><b>") + tr("The password was not accepted. Please try again.") + QStringLiteral("</b>");
+    }
+
+    _passwordDialog = new QInputDialog();
+    _passwordDialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    _passwordDialog->setWindowTitle(tr("Log in"));
+    _passwordDialog->setLabelText(message);
+    _passwordDialog->setTextEchoMode(QLineEdit::Password);
+    _passwordDialog->setOkButtonText(tr("Log in"));
+
+    connect(_passwordDialog, &QDialog::finished, this, [this](int result) {
+        const auto dialog = _passwordDialog;
+        _passwordDialog = nullptr;
+        if (result == QDialog::Accepted && dialog && !dialog->textValue().isEmpty()) {
+            qCInfo(lcWebFlowCredentials()) << "Obtained a new password in the client";
+            _password = dialog->textValue();
+            _ready = true;
+            _credentialsValid = true;
+            persist();
+        } else {
+            qCDebug(lcWebFlowCredentials()) << "User cancelled the password prompt";
+        }
+        Q_EMIT asked();
+    });
+
+    _passwordDialog->open();
+    _passwordDialog->raise();
+    _passwordDialog->activateWindow();
 }
 
 void WebFlowCredentials::slotAskFromUserCredentialsProvided(const QString &user, const QString &pass) {

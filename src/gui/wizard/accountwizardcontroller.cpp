@@ -43,12 +43,13 @@
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
 #include <QNetworkProxy>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPointer>
-#include <QSslConfiguration>
+#include <QRegularExpression>
 #include <QSslCertificate>
+#include <QSslConfiguration>
 #include <QStorageInfo>
 #include <QTimer>
 #include <QUuid>
@@ -60,6 +61,29 @@ namespace OCC {
 Q_LOGGING_CATEGORY(lcAccountWizardController, "nextcloud.gui.accountwizardcontroller", QtInfoMsg)
 
 namespace {
+
+/**
+ * Default local folder of one account, named after the user it belongs to.
+ *
+ * A fixed default makes every new setup collide with the folder of the previous one, so each
+ * login ended up in a fresh folder with a number appended. Naming it after the user gives the
+ * same person the same folder every time they sign in again or re-add their account.
+ */
+QString perUserLocalFolder(const QString &basePath, const QString &user)
+{
+    auto name = user.trimmed();
+    // Characters Windows does not accept in a file name, plus control characters.
+    static const QRegularExpression invalidCharacters(QStringLiteral(R"([\\/:*?"<>|\x00-\x1f])"));
+    name.replace(invalidCharacters, QStringLiteral("_"));
+    while (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) {
+        name.chop(1);
+    }
+
+    if (name.isEmpty()) {
+        return basePath;
+    }
+    return basePath + QLatin1Char('-') + name;
+}
 
 bool localFolderContainsData(const QString &localSyncFolder)
 {
@@ -1346,12 +1370,15 @@ void AccountWizardController::initialiseLocalSyncFolder()
         if (!QDir(localFolder).isAbsolute()) {
             localFolder = QDir::homePath() + QLatin1Char('/') + localFolder;
         }
+        localFolder = perUserLocalFolder(localFolder, _basicAuthUser);
 #endif
     }
 
-    const auto strategy = overrideLocalDir
-        ? FolderMan::GoodPathStrategy::AllowOverrideExistingPath
-        : FolderMan::GoodPathStrategy::AllowOnlyNewPath;
+    // The per-user folder is meant to be picked up again when the same user signs back in, so an
+    // existing one is reused rather than skipped. findGoodPathForNewSyncFolder still moves on to a
+    // numbered name when the folder is not usable, for instance because another account syncs it.
+    const auto strategy = overrideLocalDir || !_basicAuthUser.trimmed().isEmpty() ? FolderMan::GoodPathStrategy::AllowOverrideExistingPath
+                                                                                  : FolderMan::GoodPathStrategy::AllowOnlyNewPath;
     setLocalSyncFolder(localFolder.isEmpty()
         ? QString{}
         : FolderMan::instance()->findGoodPathForNewSyncFolder(localFolder, localFolderServerUrl(), strategy),

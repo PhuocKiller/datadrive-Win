@@ -639,3 +639,27 @@ Chưa thử vòng có đăng nhập tài khoản trong lượt này; phần HKLM
   - Sửa: `MUI_FINISHPAGE_RUN_FUNCTION LaunchDataDriveAsUser` → `Exec explorer.exe "<exe>"`.
     Kiểm chứng: gọi từ tiến trình Admin, `datadrive.exe` mới chạy quyền thường (TokenElevation=0).
   - **Chưa xác nhận** đây là nguyên nhân của triệu chứng người dùng thấy; cần người dùng thử lại.
+
+---
+
+## Đăng nhập lại sau Log out; thư mục đồng bộ theo từng user
+
+**Đăng nhập lại kẹt:** nút Log in gọi `WebFlowCredentials::askFromUser()` → mở
+`BrowserReAuthWindow` (đăng nhập qua trình duyệt) — luồng bản này không dùng. Sửa: khi
+`Theme::forceInAppLogin()`, hiện hộp thoại nhập mật khẩu trong app (`askForPasswordInApp`,
+cùng kiểu `HttpCredentialsGui::showDialog`). User và server giữ nguyên, chỉ hỏi mật khẩu. Sai
+mật khẩu → server từ chối → `handleInvalidCredentials` gọi lại → hộp thoại hiện kèm dòng
+"The password was not accepted".
+
+**Thư mục DataDrive, DataDrive2…10:** `initialiseLocalSyncFolder` dùng
+`GoodPathStrategy::AllowOnlyNewPath`, nên hễ thư mục mặc định đã tồn tại là đánh số mới. Sửa:
+tên mặc định `DataDrive-<username>` (thay ký tự Windows cấm bằng `_`), và cho phép dùng lại thư
+mục đã có. Nếu thư mục đó đang bị tài khoản khác dùng, `findGoodPathForNewSyncFolder` vẫn tự
+đánh số như cũ.
+
+**Dọn máy:** config đang dùng `DataDrive9` (drtranhuyphuoc) và `DataDrive10` (tranhuyphuoc113)
+— giữ nguyên. Xoá `DataDrive`, `DataDrive2`–`DataDrive8`: không thư mục nào có file tải về thật,
+chỉ placeholder và sổ sách app. Gỡ đăng ký sync root `...tranhuyphuoc113...!1` đang trỏ vào
+`DataDrive8` đã không còn.
+
+**Chưa kiểm chứng:** hai luồng này cần đăng nhập thật; chưa có test tự động cho chúng.
