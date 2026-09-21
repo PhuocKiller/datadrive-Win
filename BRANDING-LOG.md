@@ -608,3 +608,18 @@ thư mục đồng bộ đều sạch.
 
 Thư mục `%TEMP%\DataDrive-XXXXXX` (chứa file `abcdef...`, có thư mục khoá quyền) là **rác do bộ
 test ctest tạo**, người dùng cuối không có. Đã dọn tay bằng takeown/icacls.
+
+---
+
+## Icon shortcut Desktop không phải DD ngay sau khi cài
+
+`@{registry_hook}` chạy **trước** bước 7za giải nén (template dòng 166 vs 178), nên shortcut
+tạo lúc `datadrive.exe` chưa tồn tại → Windows lưu icon trống, chỉ đổi sau khi app làm mới icon.
+
+Sửa: tạo shortcut trong một `Section` không tên đặt qua `un_sections` (hook top-level duy nhất
+sau giải nén mà không bật trang Components — `sections` sẽ ghi đè `sections_page` đang chứa
+`MUI_FINISHPAGE_RUN`). Chỉ định icon `datadrive.exe,0` và gọi `SHChangeNotify(SHCNE_ASSOCCHANGED)`.
+
+Kiểm chứng: cài `/S` → shortcut ở `C:\Users\Public\Desktop`, icon trích ra là DD. Gỡ `/S` →
+Program Files, shortcut, Start Menu, registry, script tạm đều sạch (script chạy hết lần này).
+Chưa thử vòng có đăng nhập tài khoản trong lượt này; phần HKLM SyncRoot đã thử riêng trước đó.

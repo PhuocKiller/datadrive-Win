@@ -119,9 +119,20 @@ class Package(CMakePackageBase):
             '!define MUI_FINISHPAGE_RUN_TEXT "Start DataDrive"',
         ])
 
-        # Runs inside the install section, so the desktop shortcut lands next to the Start menu
-        # one instead of leaving people to hunt for the app.
-        self.defines["registry_hook"] = f'CreateShortCut "$DESKTOP\\DataDrive.lnk" "{appExecutable}"'
+        # The desktop shortcut has to be created after the payload is unpacked. registry_hook runs
+        # before the 7za extraction, and a shortcut made then points at a datadrive.exe that does
+        # not exist yet, so Windows caches a blank icon for it until something later forces a
+        # refresh. The template's only top-level hook after extraction that does not also switch
+        # on a components page is un_sections, so the install section goes in there; NSIS runs
+        # plain sections in the order they appear, whatever comes around them.
+        desktopShortcutSection = [
+            "Section",
+            f'  CreateShortCut "$DESKTOP\\DataDrive.lnk" "{appExecutable}" "" "{appExecutable}" 0',
+            # SHCNE_ASSOCCHANGED: tells Explorer to drop cached icons and redraw the desktop now.
+            "  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'",
+            "SectionEnd",
+            "",
+        ]
 
         # Everything the running app leaves behind that the stock uninstaller never touches.
         #
@@ -146,7 +157,7 @@ class Package(CMakePackageBase):
         def toNsisString(line: str) -> str:
             return line.replace("$", "$$").replace('"', '$\\"').replace("`", "$\\`")
 
-        unSections = [
+        unSections = desktopShortcutSection + [
             "Section un.DesktopShortcut",
             '  Delete "$DESKTOP\\DataDrive.lnk"',
             "SectionEnd",
