@@ -153,6 +153,10 @@ class Package(CMakePackageBase):
             "",
             "Section un.UserState",
             '  StrCpy $1 "$TEMP\\datadrive-uninstall-cleanup.ps1"',
+            # The error flag is sticky in NSIS. The main uninstall section sets it whenever a
+            # locked shell extension DLL refuses to go, and without clearing it here IfErrors
+            # below would skip every FileWrite and leave an empty script behind.
+            "  ClearErrors",
             '  FileOpen $0 "$1" w',
             "  IfErrors cleanupDone",
         ]
@@ -160,7 +164,7 @@ class Package(CMakePackageBase):
             unSections.append(f'  FileWrite $0 "{toNsisString(line)}$\\r$\\n"')
         unSections += [
             "  FileClose $0",
-            '  nsExec::ExecToLog \'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$1"\'',
+            '  nsExec::ExecToLog \'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$1" -InstallDir "$INSTDIR"\'',
             "  Pop $2",
             '  Delete "$1"',
             "  cleanupDone:",

@@ -584,3 +584,27 @@ này ứng dụng tạo **ngay trong thư mục đồng bộ của người dùn
 `CMakeLists.txt:38,41,45` giữ nguyên GUID của Nextcloud cho AppID, Custom State Handler và
 Thumbnail Handler. Lần trước tôi chỉ soi khối `WIN_SHELLEXT` trong `NEXTCLOUD.cmake` nên bỏ sót.
 Dùng chung CLSID nghĩa là cài cả hai sản phẩm trên một máy sẽ đè lên nhau. Đã sinh mới cả ba.
+
+---
+
+## Bộ gỡ cài đặt không xoá mục Explorer — 3 lỗi
+
+1. **Script dọn dẹp ghi ra rỗng (0 dòng).** Cờ lỗi NSIS dính từ section chính (xoá DLL bị khoá
+   thất bại), nên `IfErrors cleanupDone` nhảy qua toàn bộ `FileWrite`. Sửa: thêm `ClearErrors`
+   trước `FileOpen`.
+2. **Mục Explorer nằm ở HKLM, không phải HKCU.** CfAPI đăng ký sync root tại
+   `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SyncRootManager\DataDrive!<SID>!<user>!1`.
+   Script chỉ quét HKCU. Sửa: gọi `StorageProviderSyncRootManager::Unregister`, rồi xoá khoá sót.
+3. **`dllhost` (COM surrogate chạy CfApiShellExtensions.dll) giữ khoá** trên DLL trong Program
+   Files và database journal trong thư mục đồng bộ. Đọc `.Modules` của tiến trình hệ thống ném
+   Access denied làm hỏng vòng lọc nên không kết thúc được nó. Sửa: bọc try/catch, kết thúc nó
+   ngay đầu script, thử lại tối đa 5 lượt trước khi xoá thư mục cài đặt.
+
+Phụ: `-Include` bị bỏ qua khi đi cùng `-LiteralPath` → đổi sang lọc theo tên. Thêm dự phòng
+thư mục đồng bộ mặc định `%USERPROFILE%\DataDrive` khi cấu hình đã mất. Truyền `-InstallDir`.
+
+Đã chạy thử script trên trạng thái sót thật của máy: HKLM SyncRoot, HKCU, config, credential,
+thư mục đồng bộ đều sạch.
+
+Thư mục `%TEMP%\DataDrive-XXXXXX` (chứa file `abcdef...`, có thư mục khoá quyền) là **rác do bộ
+test ctest tạo**, người dùng cuối không có. Đã dọn tay bằng takeown/icacls.
