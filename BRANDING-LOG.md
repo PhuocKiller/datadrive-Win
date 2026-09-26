@@ -738,3 +738,43 @@ hiện trên cửa sổ Settings. Nâng cấp `/S` giữ nguyên cấu hình (ch
 
 **Giới hạn cần biết:** khoá là quyền NTFS trên cùng tài khoản Windows. Người có quyền admin có
 thể tự gỡ. Nó chặn người dùng chung máy mở xem, không phải mã hoá.
+
+## Android (C:\Users\tranh\datadrive-android, nhánh rebrand-datadrive)
+- applicationId vn.datadrive.client (các flavor khác thêm hậu tố). namespace/package giữ nguyên.
+- setup.xml: DataDrive, account_type datadrive, authority vn.datadrive.*, data_folder datadrive,
+  webview_login_url=https://storage.datadrive.vn/index.php/login/v2, show_server_url_input=false,
+  is_branded_client=true (ẩn thanh chuyển app Nextcloud), participate/recommend/whats_new tắt.
+- Màu primary #0A93E0 (lấy từ logo), thay vì #0082C9 tạm. Logo lấy từ Logo/Logo -> branding/.
+- FirstRun viết lại: logo + tagline + Đăng nhập + Trang chủ + EN|VI. AuthenticatorActivity hoãn
+  gửi login v2 cho tới khi FirstRun trả RESULT_OK (trạng thái lưu qua recreate khi đổi ngôn ngữ).
+- Ngôn ngữ: AppCompatDelegate.setApplicationLocales, locales_config.xml, AppLocalesMetadataHolderService,
+  localeFilters en/vi, mục "Language / Ngôn ngữ" trong Settings.
+- values-vi: dịch 445 chuỗi + 20 plurals còn thiếu; chuẩn hoá "tập tin"->"tệp", "tải về"->"tải xuống".
+- Build: cần --dependency-verification=lenient (verification-metadata thiếu checksum). Không có emulator
+  trên máy nên chưa chạy thử trên thiết bị.
+- Release: keystore C:\Users\tranh\datadrive-keys\datadrive-release.jks (+keystore.properties, alias datadrive),
+  ngoài repo. build.gradle.kts đọc keystore.properties từ gốc repo hoặc ~/datadrive-keys. Version 1.0.0 (code 10000099).
+  APK release 100MB (4 ABI), AAB 55MB. Bản generic còn REQUEST_INSTALL_PACKAGES + MANAGE_EXTERNAL_STORAGE:
+  lên Play cần bản riêng (gỡ quyền cài gói, khai báo/bỏ quyền mọi tệp).
+- Đăng nhập native: FirstRunActivity có ô username/password; DataDriveLogin gọi
+  /ocs/v2.php/core/getapppassword (Basic auth) -> app password; 401 = sai mật khẩu, 403 = đã là app password.
+  AuthenticatorActivity luôn mở FirstRun, nhận EXTRA_LOGIN_* rồi login() -> checkOcServer -> tạo tài khoản.
+  Không còn gọi login flow v2 / trình duyệt. Đã thử server: sai mật khẩu trả 401.
+
+---
+
+## Tên thư mục trong khung trái Explorer: "Datadrive.vn - <email>"
+
+- Trước: `DisplayNameResource` của SyncRoot = `Folder::sidebarDisplayName()` =
+  `DataDrive - storage.datadrive.vn - <tên hiển thị>` (khi có >1 tài khoản) hoặc `DataDrive`.
+- Sửa `src/gui/folder.cpp` `sidebarDisplayName()`: luôn trả `Datadrive.vn - <email>`, email =
+  tên đăng nhập của credentials (người dùng đăng nhập bằng email), dự phòng `davUser()`.
+  Hàm này dùng cho cả VFS (CfAPI registry) lẫn navigationpanehelper.
+- SyncRoot đã có được ghi đè `DisplayNameResource` mỗi lần app khởi động (`startVfs`), không cần
+  xoá tài khoản.
+- Build: vcvars cần `...\Microsoft Visual Studio\Installer` trong PATH (vswhere); cấu hình lại bằng
+  VS 18 làm hỏng `HAS_CLOCK_CAST` trong cache → `cmake -U HAS_CLOCK_CAST .` với vcvars VS2022.
+  Craft chạy thẳng: `python craft.py --options nextcloud-client.srcDir=C:\projects\Datadrive
+  --compile --install --qmerge --package nextcloud-client` (craftenv.ps1 lỗi tìm python).
+- Bộ cài mới: `C:\Users\tranh\datadrive-win-build\datadrive-win-setup.exe` (26/09 10:21).
+  Đã kiểm chứng chuỗi "Datadrive.vn - %1" có trong datadrive.exe. **Chưa kiểm chứng** trên Explorer.

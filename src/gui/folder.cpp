@@ -309,12 +309,18 @@ QString Folder::shortGuiRemotePathOrAppName() const
 
 QString Folder::sidebarDisplayName() const
 {
-    auto displayName = shortGuiRemotePathOrAppName();
-    if (AccountManager::instance()->accounts().size() > 1) {
-        displayName = QStringLiteral("%1 - %2").arg(displayName, accountState()->account()->shortcutName());
+    // DataDrive: the Explorer navigation pane shows "Datadrive.vn - <registered email>".
+    // Users sign in with their email, so the login name of the credentials is that email.
+    const auto account = accountState()->account();
+    auto email = account->credentials() ? account->credentials()->user() : QString{};
+    if (email.isEmpty()) {
+        email = account->davUser();
+    }
+    if (email.isEmpty()) {
+        return QStringLiteral("Datadrive.vn");
     }
 
-    return displayName;
+    return QStringLiteral("Datadrive.vn - %1").arg(email);
 }
 
 QString Folder::alias() const
