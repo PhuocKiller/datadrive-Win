@@ -809,3 +809,7 @@ gói không có trong cache (libs/runtime, dev-utils/7zip, dev-utils/cmake) buil
   Xmx4g + chạy song song craft làm Claude Code dừng tác vụ vì thiếu RAM.
 - UnicodeEncodeError trong log craft khi ghi .nsi (chữ Việt trong comment) chỉ là lỗi in log, có từ trước,
   không ảnh hưởng bộ cài.
+- 02/10: gỡ Visual Studio Community 2026 (VS 18, cài 17/09 19:29, cùng ngày cài Qt 6.11.2 — trước khi log
+  này bắt đầu, không rõ ai cài). Nó là bên đã cài Windows SDK 10.0.26100 mà bản build đang dùng, nên trước
+  khi gỡ đã thêm component Windows11SDK.26100 vào VS 2022 BuildTools. Xoá C:\BackupServer (ảnh backup
+  hệ thống 02/09, 10 GB). Craft package lại thành công sau khi gỡ.
