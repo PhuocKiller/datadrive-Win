@@ -778,3 +778,34 @@ thể tự gỡ. Nó chặn người dùng chung máy mở xem, không phải m�
   --compile --install --qmerge --package nextcloud-client` (craftenv.ps1 lỗi tìm python).
 - Bộ cài mới: `C:\Users\tranh\datadrive-win-build\datadrive-win-setup.exe` (26/09 10:21).
   Đã kiểm chứng chuỗi "Datadrive.vn - %1" có trong datadrive.exe. **Chưa kiểm chứng** trên Explorer.
+
+---
+
+## Dọn ổ đĩa (28/09)
+
+Đo thật (bỏ placeholder VFS và junction C:\_): Used 120 GB. Lớn nhất: WinSxS 23.5, CraftRoot 28
+(trong đó work/build của nextcloud-client 16 — giữ), BackupServer 10 (ảnh backup hệ thống — giữ),
+VS 18 Community 6.5 + VS 2022 BuildTools, Windows Kits, pagefile 8.7.
+
+Đã xoá: Temp user/Windows, CraftRoot\build\{libs,dev-utils,python-modules}, tmp bộ cài cũ,
+.gradle\caches\build-cache-1, AppData\Local\vcpkg, C:\Qt (Qt 6.11.2 không dùng — craft dùng Qt 6.10.2
+của chính nó; gỡ bằng MaintenanceTool purge), DISM StartComponentCleanup (4.2 GB).
+
+**Sai sót:** xoá build\libs|dev-utils làm mất các thư mục image mà packager NSIS của craft ghép vào
+bộ cài (`image directory ... does not exist`, `@{7za} is not in variables`). Build exe vẫn được,
+chỉ bước đóng gói hỏng. Khôi phục: `craft --fetch-binary <gói>` (giải nén lại từ download\cache);
+gói không có trong cache (libs/runtime, dev-utils/7zip, dev-utils/cmake) build lại bằng
+`craft --no-cache --fetch --unpack --compile --install <gói>`.
+**Bài học:** build\<nhóm>\<gói>\image-* của craft là dữ liệu cần cho đóng gói, không phải rác.
+- Trạng thái dừng giữa chừng (máy thiếu RAM, Claude Code tự dừng tác vụ nền khi chạy song song
+  craft + Gradle): libs/* khôi phục xong. dev-utils: xong 7zip-base, cmake-base, flexbison, icoutils,
+  jom, kshimgen, nasm. Không có cache (phải build lại): 7zip, cmake, git, msys, msys-base.
+  Chưa chạy: ninja, nsis, patch, perl, pkgconf, sed, wget, python-modules/*. Build Android thử dở ở
+  kspGenericDebugKotlin (không lỗi, bị dừng).
+- Hoàn tất (28/09 23:25): khôi phục đủ dev-utils/python-modules (nsis, 7zip, cmake, git, msys, msys-base,
+  patch, sed build lại; còn lại từ cache). `craft --package nextcloud-client` thành công, bộ cài chép vào
+  datadrive-win-build (48.4 MB). Android `assembleGenericDebug --offline` BUILD SUCCESSFUL (5m30s) với
+  `-Dorg.gradle.jvmargs=-Xmx2g`, workers=2, kotlin in-process — máy chỉ có 4 GB RAM, cấu hình mặc định
+  Xmx4g + chạy song song craft làm Claude Code dừng tác vụ vì thiếu RAM.
+- UnicodeEncodeError trong log craft khi ghi .nsi (chữ Việt trong comment) chỉ là lỗi in log, có từ trước,
+  không ảnh hưởng bộ cài.
